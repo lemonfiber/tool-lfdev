@@ -1,0 +1,25 @@
+[project]
+name = "lfdev"
+version = "0.1.0"
+description = "The lemonfiber developer command line."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+lfdev = "lfdev.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.coverage.run]
+source = ["src/lfdev"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true

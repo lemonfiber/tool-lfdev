@@ -1,0 +1,40 @@
+# CodeQL over the tool and its workflows, and the gate that refuses a pull
+# request while an open alert stands (Q-R53).
+name: codeql
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 2"
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, python]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v3
+  alerts:
+    needs: analyze
+    if: ${{ !cancelled() }}
+    permissions:
+      contents: read
+      security-events: read
+    uses: lemonfiber/spec/.github/workflows/codeql-alerts.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    with:
+      analysis: ${{ needs.analyze.result }}

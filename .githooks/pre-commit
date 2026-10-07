@@ -1,0 +1,6 @@
+#!/bin/sh
+# The fast checks, before a commit: formatting and lint of what is staged.
+# The suite and its coverage run in CI.
+set -eu
+uvx ruff@0.16.4 format --check .
+uvx ruff@0.16.4 check .
