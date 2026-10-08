@@ -39,6 +39,14 @@ REQ_RETIRED_ROW = re.compile(
     re.MULTILINE,
 )
 
+# A row marked Draft in place: an approved proposal's requirement, written into
+# its feature ahead of the review that hardens it (GOV-R42). The feature may be
+# Accepted; the row is not, until a pull request removes the marker.
+REQ_DRAFT_ROW = re.compile(
+    r"^\|\s*\*\*([A-Z]+\d*-R\d+)\*\*\s*\|\s*\*Draft:\*",
+    re.MULTILINE,
+)
+
 # A requirement, cited: a mention of one anywhere in prose.
 CITE = re.compile(r"\b([A-Z]+\d*-R\d+)\b")
 
