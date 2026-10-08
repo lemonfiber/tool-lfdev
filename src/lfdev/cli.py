@@ -6,10 +6,12 @@ each subcommand gets a module of its own.
 from __future__ import annotations
 
 import argparse
+import datetime
 import sys
+import urllib.error
 from collections.abc import Sequence
 
-from lfdev import __version__, doctor, snapshot, views, work
+from lfdev import __version__, checks, doctor, forge, snapshot, views, work
 
 
 def parser() -> argparse.ArgumentParser:
@@ -24,6 +26,8 @@ def parser() -> argparse.ArgumentParser:
     board = commands.add_parser("board", help="every feature by maturity, filtered")
     for name in work.FILTERS:
         board.add_argument(f"--{name}", choices=("yes", "no") if name == "claimed" else None)
+    reading = commands.add_parser("checks", help="a pull request's checks, at most every ten minutes")
+    reading.add_argument("target", metavar="repo#number")
     pick = commands.add_parser("next", help="goals nobody has claimed, to pick up")
     for name in ("version", "area", "repo"):
         pick.add_argument(f"--{name}")
@@ -32,6 +36,24 @@ def parser() -> argparse.ArgumentParser:
 
 def _filters(args: argparse.Namespace, names: Sequence[str]) -> dict[str, str]:
     return {name: value for name in names if (value := getattr(args, name))}
+
+
+def _checks(target: str) -> int:
+    try:
+        repo, number = checks.parse_target(target)
+        auth = forge.token()
+        found, wait = checks.checks(
+            repo,
+            number,
+            lambda path: forge.get(path, auth),
+            datetime.datetime.now(datetime.UTC),
+            checks.cache_file(),
+        )
+    except (ValueError, forge.Unauthenticated, urllib.error.URLError) as broken:
+        print(f"lfdev: {broken}", file=sys.stderr)
+        return 2
+    print(checks.view(f"{repo}#{number}", found, wait))
+    return 1 if checks.verdict(found) == "failing" else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -44,6 +66,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         code, said = doctor.report(doctor.checks())
         print(said)
         return code
+    if args.command == "checks":
+        return _checks(args.target)
     try:
         board = snapshot.load(snapshot.source())
     except snapshot.Unreadable as broken:
