@@ -78,9 +78,9 @@ class Edited(unittest.TestCase):
     def test_a_rewrite_that_moves_anything_else_is_refused(self):
         # The list closes on its last goal's line, so the first `]` at the start
         # of a line is the next list's, which the rewrite would take with it.
-        text = 'goals = [\n  "A1-R1"]\nother = [\n]\n'
+        text, given = 'goals = [\n  "A1-R1"]\nother = [\n]\n', asked(["B2-R1"])
         with self.assertRaisesRegex(ValueError, "more than the goals"):
-            goals.edited(text, asked(["B2-R1"]))
+            goals.edited(text, given)
 
 
 class Describe(unittest.TestCase):
