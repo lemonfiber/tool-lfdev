@@ -3,17 +3,16 @@ at most once every ten minutes for each pull request (GOV-R54, REPO-R75).
 
 A read within ten minutes of the last one for the same pull request is not
 made: the answer recorded then is printed, with how long until another read is
-allowed. The record is kept under the user's cache directory.
+allowed. The record is kept in `~/.cache/lfdev/checks.json`.
 """
 
 from __future__ import annotations
 
 import datetime
 import json
-import os
 import pathlib
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from typing import Any
 
 #: The least time between two reads of one pull request's checks.
@@ -35,10 +34,10 @@ def parse_target(text: str) -> tuple[str, int]:
     return f"{owner}/{match['repo']}", int(match["number"])
 
 
-def cache_file(environ: Mapping[str, str] = os.environ) -> pathlib.Path:
-    """Where the last read of each pull request is recorded."""
-    root = environ.get("XDG_CACHE_HOME") or str(pathlib.Path.home() / ".cache")
-    return pathlib.Path(root, "lfdev", "checks.json")
+def cache_file(home: pathlib.Path | None = None) -> pathlib.Path:
+    """Where the last read of each pull request is recorded: a fixed place
+    under the user's home, which nothing typed or set can move."""
+    return (home or pathlib.Path.home()) / ".cache" / "lfdev" / "checks.json"
 
 
 def _load(path: pathlib.Path) -> dict[str, Any]:

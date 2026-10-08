@@ -85,9 +85,9 @@ class Floor(unittest.TestCase):
 
 
 class Cache(unittest.TestCase):
-    def test_under_the_users_cache_directory(self):
-        self.assertEqual(checks.cache_file({"XDG_CACHE_HOME": "/c"}), pathlib.Path("/c/lfdev/checks.json"))
-        self.assertEqual(checks.cache_file({}).parts[-2:], ("lfdev", "checks.json"))
+    def test_under_the_users_home(self):
+        self.assertEqual(checks.cache_file(pathlib.Path("/h")), pathlib.Path("/h/.cache/lfdev/checks.json"))
+        self.assertEqual(checks.cache_file().parts[-3:], (".cache", "lfdev", "checks.json"))
 
 
 class View(unittest.TestCase):
