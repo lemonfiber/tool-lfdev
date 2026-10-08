@@ -134,17 +134,17 @@ def where(asked: Asked, board: Mapping[str, Any], ask: Asker) -> tuple[pathlib.P
     return root, branch if remote["owner"] == forge.ORG else f"{remote['owner']}:{branch}"
 
 
-def request(asked: Asked, head: str, relative: str) -> dict[str, Any]:
-    """The pull request a proposal opens."""
+def request(asked: Asked, head: str, relative: str, ending: str) -> dict[str, Any]:
+    """The pull request a proposal opens. Its title is the commit's subject on
+    `main`, so it is a conventional one, and its body ends with `ending`."""
     what = "a gap in" if asked.kind == "gap" else "a change to"
     return {
-        "title": f"{'Gap' if asked.kind == 'gap' else 'Proposal'}: {asked.title.strip()}"[:120],
+        "title": f"docs({asked.kind}): {asked.title.strip()}"[:120],
         "head": head,
         "base": DEFAULT,
         "body": (
             f"{asked.title.strip()}: {what} the specification, as `{relative}`. A maintainer "
-            "approves it with `proposal:approved`, which allocates its identifiers.\n\n"
-            f"Spec: {REQUIREMENT}"
+            "approves it with `proposal:approved`, which allocates its identifiers.\n\n" + ending
         ),
         "maintainer_can_modify": True,
     }
@@ -164,7 +164,7 @@ def propose(
         if run(step, root) != 0:
             return 1, f"`{' '.join(step[:3])}` did not succeed; nothing is written"
     (root / relative).write_text(text(asked), "utf-8")
-    headline = f"docs(proposal): {asked.title.strip()}"[:100]
+    headline = f"docs({asked.kind}): {asked.title.strip()}"[:100]
     steps = [
         ["git", "add", "--", relative],
         ["git", "commit", "-S", "-s", "-m", headline, "-m", f"Spec: {REQUIREMENT}", "--", relative],
@@ -174,7 +174,10 @@ def propose(
         if run(step, root) != 0:
             return 1, f"{relative} is written on {branch}, and `{' '.join(step[:2])}` did not succeed"
     try:
-        pull = post(f"repos/{forge.ORG}/{SPEC}/pulls", request(asked, head, relative))
+        pull = post(
+            f"repos/{forge.ORG}/{SPEC}/pulls",
+            request(asked, head, relative, forge.ending(ask, root, REQUIREMENT)),
+        )
     except urllib.error.URLError as broken:
         return 1, f"{branch} is pushed, and the pull request was not opened: {broken}"
     return 0, f"opened {pull['html_url']}"

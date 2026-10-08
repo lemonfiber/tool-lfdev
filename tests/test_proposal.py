@@ -91,6 +91,7 @@ class Propose(unittest.TestCase):
         self.answers = {
             "rev-parse --show-toplevel": (0, str(self.root)),
             "remote get-url origin": (0, "git@github.com:lemonfiber/spec.git"),
+            f"-C {self.root} var GIT_COMMITTER_IDENT": (0, "Ana Lima <ana@example.org> 1760000000 +0200"),
         }
 
     def ask(self, args):
@@ -130,10 +131,10 @@ class Propose(unittest.TestCase):
         ((path, body),) = self.posted
         self.assertEqual(path, "repos/lemonfiber/spec/pulls")
         self.assertEqual(
-            (body["title"], body["head"]), ("Proposal: Scheduled scans", "proposal/scheduled-scans")
+            (body["title"], body["head"]), ("docs(proposal): Scheduled scans", "proposal/scheduled-scans")
         )
         self.assertTrue(body["maintainer_can_modify"])
-        self.assertIn("Spec: GOV-R40", body["body"])
+        self.assertTrue(body["body"].endswith("Spec: GOV-R40\n\nSigned-off-by: Ana Lima <ana@example.org>"))
 
     def test_from_a_fork_the_head_names_its_owner(self):
         self.answers["remote get-url origin"] = (0, "https://github.com/ana/spec.git")
@@ -141,7 +142,7 @@ class Propose(unittest.TestCase):
         self.propose(gap)
         ((_, body),) = self.posted
         self.assertEqual(
-            (body["head"], body["title"]), ("ana:proposal/silence-on-scans", "Gap: Silence on scans")
+            (body["head"], body["title"]), ("ana:proposal/silence-on-scans", "docs(gap): Silence on scans")
         )
 
     def test_a_step_that_fails_is_said(self):

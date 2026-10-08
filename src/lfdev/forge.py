@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 import re
 import subprocess
 import urllib.request
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from lfdev import __version__
@@ -30,6 +31,19 @@ Poster = Callable[[str, Mapping[str, Any]], Any]
 API = "https://api.github.com"
 #: How long a request may take before it is given up, in seconds.
 TIMEOUT = 30
+
+
+def ending(ask: Callable[[Sequence[str]], tuple[int, str]], root: pathlib.Path, cites: str) -> str:
+    """The lines a pull request's body ends with.
+
+    A squash merge writes the title and body to `main` as the commit, so the body
+    carries the citation and the sign-off that commit needs (GOV-R62). The
+    sign-off names the identity `git commit -s` signs with, which is git's
+    committer identity in that clone.
+    """
+    code, said = ask(["git", "-C", str(root), "var", "GIT_COMMITTER_IDENT"])
+    who = said.rsplit(" ", 2)[0] if code == 0 and said.count(" ") >= 2 else ""
+    return f"Spec: {cites}" + (f"\n\nSigned-off-by: {who}" if who else "")
 
 
 class Unauthenticated(Exception):

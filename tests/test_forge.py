@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import pathlib
 import unittest
 from unittest import mock
 
@@ -56,3 +57,23 @@ class Post(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Ending(unittest.TestCase):
+    def test_the_citation_then_the_committer_s_sign_off(self):
+        asked = []
+
+        def ask(args):
+            asked.append(args)
+            return 0, "Ana Lima <ana@example.org> 1760000000 +0200"
+
+        said = forge.ending(ask, pathlib.Path("/work/spec"), "GOV-R40")
+        self.assertEqual(said, "Spec: GOV-R40\n\nSigned-off-by: Ana Lima <ana@example.org>")
+        self.assertEqual(asked, [["git", "-C", "/work/spec", "var", "GIT_COMMITTER_IDENT"]])
+
+    def test_no_identity_leaves_the_citation_alone(self):
+        for answer in ((1, ""), (0, "nobody")):
+            with self.subTest(answer):
+                self.assertEqual(
+                    forge.ending(lambda _, said=answer: said, pathlib.Path("."), "B1-R1"), "Spec: B1-R1"
+                )
