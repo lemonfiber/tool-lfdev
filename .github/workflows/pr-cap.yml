@@ -1,0 +1,19 @@
+# Tells a pull request that takes this repository past the cap of open pull
+# requests which others are open and what to do (GOV-R58). It refuses nothing.
+name: pr-cap
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+permissions:
+  contents: read
+# A pull request pushed again cancels the run on its old head, which nobody
+# will read and which holds runners the org shares (Q-R75).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  cap:
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: lemonfiber/spec/.github/workflows/pr-cap.yml@c1b34fd81d80976d73cf6a1081c55999524e14a6 # v1.0.43
