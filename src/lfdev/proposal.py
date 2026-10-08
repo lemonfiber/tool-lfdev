@@ -112,27 +112,54 @@ def text(asked: Asked) -> str:
     return "\n".join(head + body)
 
 
+def where(asked: Asked, board: Mapping[str, Any], ask: Asker) -> tuple[pathlib.Path, str]:
+    """The checkout and the head a pull request from it names, or why not."""
+    code, top = ask(["git", "rev-parse", "--show-toplevel"])
+    if code != 0:
+        raise ValueError("not inside a git repository")
+    root = pathlib.Path(top)
+    if not (root / PROPOSALS).is_dir():
+        raise ValueError(f"no {PROPOSALS} here: run this in a checkout of spec")
+    code, url = ask(["git", "remote", "get-url", "origin"])
+    remote = forge.REMOTE.search(url) if code == 0 else None
+    if remote is None:
+        raise ValueError("origin is not a repository on the forge")
+    said = faults(asked, board, root)
+    relative = PROPOSALS / f"{slug(asked.title)}.md"
+    if not said and (root / relative).exists():
+        said.append(f"{relative.as_posix()} already exists; choose another title")
+    if said:
+        raise ValueError("; ".join(said))
+    branch = f"proposal/{slug(asked.title)}"
+    return root, branch if remote["owner"] == forge.ORG else f"{remote['owner']}:{branch}"
+
+
+def request(asked: Asked, head: str, relative: str) -> dict[str, Any]:
+    """The pull request a proposal opens."""
+    what = "a gap in" if asked.kind == "gap" else "a change to"
+    return {
+        "title": f"{'Gap' if asked.kind == 'gap' else 'Proposal'}: {asked.title.strip()}"[:120],
+        "head": head,
+        "base": DEFAULT,
+        "body": (
+            f"{asked.title.strip()}: {what} the specification, as `{relative}`. A maintainer "
+            "approves it with `proposal:approved`, which allocates its identifiers.\n\n"
+            f"Spec: {REQUIREMENT}"
+        ),
+        "maintainer_can_modify": True,
+    }
+
+
 def propose(
     asked: Asked, board: Mapping[str, Any], ask: Asker, run: Runner, post: forge.Poster
 ) -> tuple[int, str]:
     """Write, commit, push and open the proposal; the exit code and what to say."""
-    code, top = ask(["git", "rev-parse", "--show-toplevel"])
-    if code != 0:
-        return 2, "not inside a git repository"
-    root = pathlib.Path(top)
-    if not (root / PROPOSALS).is_dir():
-        return 2, f"no {PROPOSALS} here: run this in a checkout of spec"
-    code, url = ask(["git", "remote", "get-url", "origin"])
-    remote = forge.REMOTE.search(url) if code == 0 else None
-    if remote is None:
-        return 2, "origin is not a repository on the forge"
-    said = faults(asked, board, root)
+    try:
+        root, head = where(asked, board, ask)
+    except ValueError as refused:
+        return 2, str(refused)
+    branch = head.rpartition(":")[2]
     relative = (PROPOSALS / f"{slug(asked.title)}.md").as_posix()
-    if not said and (root / relative).exists():
-        said.append(f"{relative} already exists; choose another title")
-    if said:
-        return 2, "; ".join(said)
-    branch = f"proposal/{slug(asked.title)}"
     for step in (["git", "fetch", "origin", DEFAULT], ["git", "switch", "-c", branch, f"origin/{DEFAULT}"]):
         if run(step, root) != 0:
             return 1, f"`{' '.join(step[:3])}` did not succeed; nothing is written"
@@ -146,23 +173,8 @@ def propose(
     for step in steps:
         if run(step, root) != 0:
             return 1, f"{relative} is written on {branch}, and `{' '.join(step[:2])}` did not succeed"
-    head = branch if remote["owner"] == forge.ORG else f"{remote['owner']}:{branch}"
-    what = "a gap in" if asked.kind == "gap" else "a change to"
     try:
-        pull = post(
-            f"repos/{forge.ORG}/{SPEC}/pulls",
-            {
-                "title": f"{'Gap' if asked.kind == 'gap' else 'Proposal'}: {asked.title.strip()}"[:120],
-                "head": head,
-                "base": DEFAULT,
-                "body": (
-                    f"{asked.title.strip()}: {what} the specification, as `{relative}`. A maintainer "
-                    "approves it with `proposal:approved`, which allocates its identifiers.\n\n"
-                    f"Spec: {REQUIREMENT}"
-                ),
-                "maintainer_can_modify": True,
-            },
-        )
+        pull = post(f"repos/{forge.ORG}/{SPEC}/pulls", request(asked, head, relative))
     except urllib.error.URLError as broken:
         return 1, f"{branch} is pushed, and the pull request was not opened: {broken}"
     return 0, f"opened {pull['html_url']}"
