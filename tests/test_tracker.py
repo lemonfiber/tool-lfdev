@@ -29,6 +29,9 @@ class Row(unittest.TestCase):
         )
 
     def test_refused(self):
+        for bad in ("../x-R1", "F8", "f8-r6", "F8-R6/../x"):
+            with self.subTest(bad), self.assertRaisesRegex(ValueError, "not a requirement identifier"):
+                tracker.row(bad, "open", [], None)
         with self.assertRaisesRegex(ValueError, "not a state"):
             tracker.row("A1-R1", "finished", [], None)
         with self.assertRaisesRegex(ValueError, "names its evidence"):

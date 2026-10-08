@@ -40,7 +40,7 @@ class Repo(unittest.TestCase):
 
         return run
 
-    def tracker(self):
+    def rows_written(self):
         return tomllib.loads((self.root / "status.toml").read_text("utf-8"))["requirement"]
 
 
@@ -49,7 +49,7 @@ class Record(Repo):
         code, said = status.record(ROW, self.ask, self.runner())
         self.assertEqual(code, 0)
         self.assertEqual(said, "A1-R1 is done in status.toml, committed")
-        self.assertEqual(self.tracker()[0]["evidence"], ["src/a.rs"])
+        self.assertEqual(self.rows_written()[0]["evidence"], ["src/a.rs"])
         check, add, commit = self.ran
         self.assertEqual(check[2:], ["check", "--spec", "spec", "--repo-root", "repo"])
         self.assertEqual(self.where, [self.root.parent.resolve(), self.root, self.root])

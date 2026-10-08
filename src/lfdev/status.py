@@ -55,7 +55,7 @@ def record(
         before = path.read_text("utf-8") if path.is_file() else None
         after = tracker.with_row(before or "", asked.ident, line)
         tomllib.loads(after)
-    except (ValueError, FileNotFoundError, tomllib.TOMLDecodeError) as refused:
+    except (ValueError, FileNotFoundError) as refused:  # a TOMLDecodeError is a ValueError
         return 2, str(refused)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(after, "utf-8")

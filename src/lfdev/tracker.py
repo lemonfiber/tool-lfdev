@@ -18,6 +18,8 @@ STATES = ("done", "partial", "open")
 FILE = "status.toml"
 #: A tracker split by feature.
 DIRECTORY = "status"
+#: A requirement's identifier, the whole of what may name a tracker's file.
+IDENTIFIER = re.compile(r"[A-Z][A-Z0-9]*-R[0-9]+")
 #: What a new tracker opens with.
 HEADER = (
     "# What this repository implements, one row per requirement (OPS-R74);\n"
@@ -25,9 +27,17 @@ HEADER = (
 )
 
 
+def identifier(text: str) -> str:
+    """A requirement's identifier, refused unless it is one, so nothing typed can
+    name a file outside the tracker."""
+    if not IDENTIFIER.fullmatch(text):
+        raise ValueError(f"{text!r} is not a requirement identifier such as F8-R6")
+    return text
+
+
 def family(ident: str) -> str:
     """The feature or namespace a requirement belongs to: `F8` for `F8-R6`."""
-    return ident.partition("-R")[0]
+    return identifier(ident).partition("-R")[0]
 
 
 def path_for(root: pathlib.Path, ident: str) -> pathlib.Path:
@@ -39,6 +49,7 @@ def path_for(root: pathlib.Path, ident: str) -> pathlib.Path:
 def row(ident: str, state: str, evidence: list[str], landed: str | None) -> str:
     """One row, as a line. TOML's basic strings are JSON's, so each value is
     written by `json.dumps` and needs no quoting of its own."""
+    identifier(ident)
     if state not in STATES:
         raise ValueError(f"{state!r} is not a state; a row is {', '.join(STATES)}")
     if state == "done" and not evidence:
