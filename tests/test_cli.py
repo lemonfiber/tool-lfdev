@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import __version__, checks, cli, doctor, forge, snapshot
+from lfdev import __version__, checks, cli, doctor, forge, snapshot, spec_scripts, status
 from tests.fixture import board
 
 
@@ -118,6 +118,30 @@ class Commands(unittest.TestCase):
         with contextlib.redirect_stderr(err):
             self.assertEqual(run(["checks", "not a target"])[0], 2)
         self.assertIn("lfdev: 'not a target' is not", err.getvalue())
+
+    def test_blocked_runs_the_copy_of_specs_script(self):
+        with mock.patch.object(spec_scripts, "script", return_value=1) as ran:
+            self.assertEqual(run(["blocked", "spec#12"])[0], 1)
+        ran.assert_called_once_with("what_is_blocking.py", "lemonfiber/spec", "12")
+
+    def test_blocked_refused(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(run(["blocked", "nope"])[0], 2)
+
+    def test_status_records_a_row(self):
+        with mock.patch.object(status, "record", return_value=(0, "A1-R1 is open")) as rec:
+            self.assertEqual(run(["status", "A1-R1", "open"]), (0, "A1-R1 is open\n"))
+        asked = rec.call_args.args[0]
+        self.assertEqual((asked.ident, asked.state, asked.evidence), ("A1-R1", "open", []))
+
+    def test_status_refused(self):
+        err = io.StringIO()
+        with (
+            mock.patch.object(status, "record", return_value=(2, "on main")),
+            contextlib.redirect_stderr(err),
+        ):
+            self.assertEqual(run(["status", "A1-R1", "done", "--evidence", "x"])[0], 2)
+        self.assertIn("on main", err.getvalue())
 
     def test_doctor(self):
         with mock.patch.object(doctor, "run", return_value=(1, "")):
