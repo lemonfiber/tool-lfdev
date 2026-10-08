@@ -3,8 +3,9 @@
 #
 # Every workflow that supplies a required check is named, not `ci` alone. The flag
 # says a pull request passed CI, and that sentence is only true once all of them
-# have finished — `ci` carries the hygiene, security, sign-off and spec checks
-# and the tests, and `codeql` the analysis and its alert gate. Named
+# have finished — `gates` carries the hygiene, security, sign-off and spec checks,
+# `pin-only` refuses a change to the workflows, `ci` carries the tests, and
+# `codeql` the analysis and its alert gate. Named
 # here rather than in the reusable because the wait list is read back out of this
 # file, so the two are the same words.
 name: awaiting-maintainer
@@ -15,7 +16,7 @@ on:
   # that the pull request became mergeable. The flag then never goes up and
   # nothing says why.
   workflow_run:
-    workflows: [ci, sonar, codeql, spec-drift]
+    workflows: [gates, pin-only, ci, sonar, codeql, spec-drift]
     types: [completed]
   pull_request_review:
     types: [submitted]
