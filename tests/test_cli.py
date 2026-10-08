@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import __version__, checks, cli, decide, doctor, forge, snapshot, spec_scripts, status
+from lfdev import __version__, checks, cli, decide, doctor, forge, goals, snapshot, spec_scripts, status
 from tests.fixture import board
 
 
@@ -155,6 +155,33 @@ class Commands(unittest.TestCase):
             contextlib.redirect_stderr(err),
         ):
             self.assertEqual(run(["decide", "Do it", "--where", "x"])[0], 2)
+        self.assertIn("on main", err.getvalue())
+
+    def test_goals_opens_a_pull_request_as_the_person(self):
+        with (
+            mock.patch.object(forge, "token", return_value="t"),
+            mock.patch.object(forge, "post", return_value={"ok": 1}) as posted,
+            mock.patch.object(goals, "propose", return_value=(0, "opened")) as proposed,
+        ):
+            self.assertEqual(
+                run(["goals", "0.18.0", "--add", "A1-R1", "B2-R1", "--remove", "C3-R1"]), (0, "opened\n")
+            )
+            given, _, _, post = proposed.call_args.args
+            self.assertEqual(given, goals.Asked("0.18.0", ["A1-R1", "B2-R1"], ["C3-R1"]))
+            self.assertEqual(post("repos/x", {"a": 1}), {"ok": 1})
+        posted.assert_called_once_with("repos/x", "t", {"a": 1})
+
+    def test_goals_refused(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            with mock.patch.object(forge, "token", side_effect=forge.Unauthenticated("no token")):
+                self.assertEqual(run(["goals", "0.18.0", "--add", "A1-R1"])[0], 2)
+            with (
+                mock.patch.object(forge, "token", return_value="t"),
+                mock.patch.object(goals, "propose", return_value=(2, "on main")),
+            ):
+                self.assertEqual(run(["goals", "0.18.0", "--add", "A1-R1"])[0], 2)
+        self.assertIn("no token", err.getvalue())
         self.assertIn("on main", err.getvalue())
 
     def test_doctor(self):

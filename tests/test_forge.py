@@ -42,5 +42,17 @@ class Get(unittest.TestCase):
         self.assertEqual(request.get_header("Authorization"), "Bearer t")
 
 
+class Post(unittest.TestCase):
+    def test_one_request_with_a_json_body(self):
+        answer = mock.MagicMock()
+        answer.__enter__.return_value = io.BytesIO(json.dumps({"number": 7}).encode())
+        with mock.patch("urllib.request.urlopen", return_value=answer) as opened:
+            self.assertEqual(forge.post("repos/x/y/pulls", "t", {"title": "a"}), {"number": 7})
+        request = opened.call_args.args[0]
+        self.assertEqual(request.get_method(), "POST")
+        self.assertEqual(json.loads(request.data), {"title": "a"})
+        self.assertEqual(request.get_header("Authorization"), "Bearer t")
+
+
 if __name__ == "__main__":
     unittest.main()

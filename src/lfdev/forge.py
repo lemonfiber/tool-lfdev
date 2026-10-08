@@ -14,6 +14,8 @@ import urllib.request
 from collections.abc import Mapping
 from typing import Any
 
+#: The organisation every repository the tool works on belongs to.
+ORG = "lemonfiber"
 #: The REST API's root.
 API = "https://api.github.com"
 #: How long a request may take before it is given up, in seconds.
@@ -38,10 +40,10 @@ def token(environ: Mapping[str, str] = os.environ) -> str:
     return done.stdout.strip()
 
 
-def get(path: str, auth: str) -> Any:
-    """One GET against the REST API, as JSON."""
+def _request(path: str, auth: str, body: Mapping[str, Any] | None = None) -> Any:
     request = urllib.request.Request(
         f"{API}/{path.lstrip('/')}",
+        data=None if body is None else json.dumps(body).encode(),
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {auth}",
@@ -50,3 +52,13 @@ def get(path: str, auth: str) -> Any:
     )
     with urllib.request.urlopen(request, timeout=TIMEOUT) as answer:
         return json.load(answer)
+
+
+def get(path: str, auth: str) -> Any:
+    """One GET against the REST API, as JSON."""
+    return _request(path, auth)
+
+
+def post(path: str, auth: str, body: Mapping[str, Any]) -> Any:
+    """One POST against the REST API, with a JSON body, as JSON."""
+    return _request(path, auth, body)
