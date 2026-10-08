@@ -16,26 +16,26 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: lemonfiber/spec/.github/workflows/spec-check.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/spec-check.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   hygiene:
-    uses: lemonfiber/spec/.github/workflows/hygiene.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/hygiene.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   workflow-pins:
-    uses: lemonfiber/spec/.github/workflows/workflow-pins.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/workflow-pins.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   security:
-    uses: lemonfiber/spec/.github/workflows/security.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/security.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   dco:
-    uses: lemonfiber/spec/.github/workflows/dco.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/dco.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   attribution:
-    uses: lemonfiber/spec/.github/workflows/attribution.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/attribution.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   commitlint:
     if: github.event_name == 'pull_request'
-    uses: lemonfiber/spec/.github/workflows/commitlint.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/commitlint.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   labeler:
     if: github.event_name == 'pull_request'
     permissions:
       contents: read
       pull-requests: write
-    uses: lemonfiber/spec/.github/workflows/labeler.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    uses: lemonfiber/spec/.github/workflows/labeler.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
   tests:
     name: tests and coverage
     runs-on: ubuntu-latest

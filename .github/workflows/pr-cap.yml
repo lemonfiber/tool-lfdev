@@ -17,4 +17,4 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: lemonfiber/spec/.github/workflows/pr-cap.yml@c1b34fd81d80976d73cf6a1081c55999524e14a6 # v1.0.43
+    uses: lemonfiber/spec/.github/workflows/pr-cap.yml@9ea0d953458bb79b9afd8b412d7e99c9435cff34 # v1.0.46
