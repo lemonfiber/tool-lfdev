@@ -19,6 +19,7 @@ from __future__ import annotations
 import glob
 import json
 import pathlib
+import re
 
 import metafm
 
@@ -28,6 +29,14 @@ FEATURE_DOCS = "10-functional/features/[a-n]-*/*.md"
 
 #: The controlled frontmatter's schema — the source of every enum below.
 SCHEMA_PATH = "10-functional/features/_meta/feature.schema.json"
+
+#: The catalogue's page, whose section headings name the areas.
+FEATURES_README = "10-functional/features/README.md"
+
+#: `## A — Getting started`: an area's letter and name, as the catalogue's page
+#: heads each section. A heading may close on a status in italics after a middle
+#: dot, `## J — Runtime & platform · *Draft*`, which is not part of the name.
+AREA_HEADING = re.compile(r"^## ([A-Z]) — (.+?)(?: · \*[^*]+\*)?$", re.MULTILINE)
 
 
 def schema() -> dict:
@@ -49,6 +58,11 @@ def enum(name: str) -> set[str]:
 def id_pattern() -> str:
     """The regex a feature id must match, as the schema states it."""
     return schema()["properties"]["id"]["pattern"]
+
+
+def areas(page: str) -> dict[str, str]:
+    """Each area the catalogue's page heads a section for: its name, by letter."""
+    return dict(AREA_HEADING.findall(page))
 
 
 def features() -> dict[str, dict]:

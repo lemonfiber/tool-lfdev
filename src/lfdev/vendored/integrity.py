@@ -22,6 +22,8 @@ import sys
 import tomllib
 
 import metafm
+from catalogue import FEATURES_README
+from catalogue import areas as area_names
 from patterns import ADR_CITE, ADR_FILE, REQ_DEF
 from patterns import CITE as REQ_CITE
 
@@ -154,8 +156,6 @@ PROPOSAL_SHAPES = ("README.md", "TEMPLATE.md")
 PROPOSAL_FILE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}\.md$")
 PROPOSAL_KINDS = ("proposal", "gap")
 PROPOSAL_FIELDS = ("kind", "area", "title", "amends", "status")
-#: `## A — Getting started`: an area of the catalogue, as its page heads it.
-AREA = re.compile(r"^## ([A-Z]) — ", re.MULTILINE)
 #: A feature's identifier, which an `amends` may name.
 FEATURE = re.compile(r"^[A-Z]\d+$")
 #: A statement of behaviour: a bullet using one of RFC 2119's keywords.
@@ -230,8 +230,8 @@ def check_proposals():
     directory = ROOT / PROPOSALS
     if not directory.is_dir():
         return []
-    catalogue = ROOT / "10-functional" / "features" / "README.md"
-    areas = set(AREA.findall(catalogue.read_text(encoding="utf-8"))) if catalogue.is_file() else set()
+    catalogue = ROOT / FEATURES_README
+    areas = set(area_names(catalogue.read_text(encoding="utf-8"))) if catalogue.is_file() else set()
     problems = []
     for path in sorted(directory.iterdir()):
         if path.name in PROPOSAL_SHAPES or path.is_dir():
