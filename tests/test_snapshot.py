@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import snapshot
+from lfdev import forge, snapshot
 from tests.fixture import board
 
 
@@ -39,7 +39,11 @@ class Load(unittest.TestCase):
         answer.__enter__.return_value = io.BytesIO(json.dumps(board()).encode())
         with mock.patch("urllib.request.urlopen", return_value=answer) as opened:
             self.assertEqual(snapshot.load(snapshot.BOARD_URL)["format"], 1)
-        opened.assert_called_once_with(snapshot.BOARD_URL, timeout=snapshot.TIMEOUT)
+        request = opened.call_args.args[0]
+        self.assertEqual(
+            (request.full_url, request.get_header("User-agent")), (snapshot.BOARD_URL, forge.USER_AGENT)
+        )
+        self.assertEqual(opened.call_args.kwargs, {"timeout": snapshot.TIMEOUT})
 
     def test_an_address_that_is_not_https(self):
         with self.assertRaisesRegex(snapshot.Unreadable, "not an https address"):

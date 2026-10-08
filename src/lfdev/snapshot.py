@@ -16,6 +16,8 @@ import urllib.request
 from collections.abc import Mapping
 from typing import Any
 
+from lfdev import forge
+
 #: Where the newest snapshot is published.
 BOARD_URL = "https://github.com/lemonfiber/spec/releases/download/board/board.json"
 #: The one shape of `board.json` this tool reads.
@@ -50,7 +52,8 @@ def fetch(url: str) -> str:
     """The text at a URL, over HTTPS."""
     if not url.startswith("https://"):
         raise Unreadable(f"{url} is not an https address")
-    with urllib.request.urlopen(url, timeout=TIMEOUT) as answer:
+    request = urllib.request.Request(url, headers={"User-Agent": forge.USER_AGENT})
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as answer:
         return answer.read().decode("utf-8")
 
 

@@ -14,8 +14,13 @@ import urllib.request
 from collections.abc import Mapping
 from typing import Any
 
+from lfdev import __version__
+
 #: The organisation every repository the tool works on belongs to.
 ORG = "lemonfiber"
+#: How the tool names itself to every address it reads. A site behind a CDN
+#: refuses the default `Python-urllib` name.
+USER_AGENT = f"lfdev/{__version__}"
 #: The REST API's root.
 API = "https://api.github.com"
 #: How long a request may take before it is given up, in seconds.
@@ -47,6 +52,7 @@ def _request(path: str, auth: str, body: Mapping[str, Any] | None = None) -> Any
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {auth}",
+            "User-Agent": USER_AGENT,
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )

@@ -9,12 +9,13 @@ import argparse
 import datetime
 import sys
 import urllib.error
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from lfdev import (
     __version__,
     checks,
     decide,
+    doc,
     doctor,
     forge,
     goals,
@@ -59,6 +60,8 @@ def parser() -> argparse.ArgumentParser:
     promise.add_argument("version")
     promise.add_argument("--add", action="extend", nargs="+", default=[], metavar="requirement")
     promise.add_argument("--remove", action="extend", nargs="+", default=[], metavar="requirement")
+    page = commands.add_parser("doc", help="the repository and file a page on the sites is rendered from")
+    page.add_argument("url")
     pick = commands.add_parser("next", help="goals nobody has claimed, to pick up")
     for name in ("version", "area", "repo"):
         pick.add_argument(f"--{name}")
@@ -96,17 +99,19 @@ def _blocked(target: str) -> int:
     return spec_scripts.script("what_is_blocking.py", repo, str(number))
 
 
-def _goals(asked: goals.Asked) -> int:
+def _say(code: int, said: str) -> int:
+    """Print an answer, to standard error where it is a refusal, and pass its code on."""
+    print(said, file=sys.stdout if code == 0 else sys.stderr)
+    return code
+
+
+def _as_person(act: Callable[[str], tuple[int, str]]) -> int:
+    """Run something that talks to the forge with the person's token, or refuse."""
     try:
         auth = forge.token()
     except forge.Unauthenticated as broken:
-        print(f"lfdev: {broken}", file=sys.stderr)
-        return 2
-    code, said = goals.propose(
-        asked, doctor.run, spec_scripts.run, lambda path, body: forge.post(path, auth, body)
-    )
-    print(said, file=sys.stdout if code == 0 else sys.stderr)
-    return code
+        return _say(2, f"lfdev: {broken}")
+    return _say(*act(auth))
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -124,19 +129,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "blocked":
         return _blocked(args.target)
     if args.command == "status":
-        code, said = status.record(
-            status.Asked(args.ident, args.state, args.evidence, args.landed, args.spec), doctor.run
+        return _say(
+            *status.record(
+                status.Asked(args.ident, args.state, args.evidence, args.landed, args.spec), doctor.run
+            )
         )
-        print(said, file=sys.stdout if code == 0 else sys.stderr)
-        return code
     if args.command == "decide":
-        code, said = decide.record(
-            args.decision, args.where, doctor.run, spec_scripts.run, datetime.date.today()
+        return _say(
+            *decide.record(args.decision, args.where, doctor.run, spec_scripts.run, datetime.date.today())
         )
-        print(said, file=sys.stdout if code == 0 else sys.stderr)
-        return code
+    if args.command == "doc":
+        return _as_person(lambda auth: doc.doc(args.url, snapshot.fetch, lambda path: forge.get(path, auth)))
     if args.command == "goals":
-        return _goals(goals.Asked(args.version, args.add, args.remove))
+        asked = goals.Asked(args.version, args.add, args.remove)
+        return _as_person(
+            lambda auth: goals.propose(
+                asked, doctor.run, spec_scripts.run, lambda p, body: forge.post(p, auth, body)
+            )
+        )
     try:
         board = snapshot.load(snapshot.source())
     except snapshot.Unreadable as broken:
