@@ -1,0 +1,53 @@
+{
+  "generated_by": "python -m lfdev.commands",
+  "commands": [
+    {
+      "name": "doctor",
+      "purpose": "check this clone is set up to commit"
+    },
+    {
+      "name": "board",
+      "purpose": "every feature by maturity, filtered"
+    },
+    {
+      "name": "checks",
+      "purpose": "a pull request's checks, at most every ten minutes"
+    },
+    {
+      "name": "blocked",
+      "purpose": "what a pull request is blocked on"
+    },
+    {
+      "name": "status",
+      "purpose": "record a requirement done, partial or open, and commit it"
+    },
+    {
+      "name": "decide",
+      "purpose": "record a decision in spec's decision log, and commit it"
+    },
+    {
+      "name": "goals",
+      "purpose": "change what a version promises, and open the pull request"
+    },
+    {
+      "name": "claim",
+      "purpose": "claim a requirement with a draft pull request here"
+    },
+    {
+      "name": "propose",
+      "purpose": "open a proposal pull request against the specification"
+    },
+    {
+      "name": "gap",
+      "purpose": "report what the specification does not say, as a pull request"
+    },
+    {
+      "name": "doc",
+      "purpose": "the repository and file a page on the sites is rendered from"
+    },
+    {
+      "name": "next",
+      "purpose": "goals nobody has claimed, to pick up"
+    }
+  ]
+}

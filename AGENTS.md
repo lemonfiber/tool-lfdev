@@ -19,6 +19,8 @@ repository. Spec:
 src/lfdev/cli.py      the command line; each subcommand gets a module of its own
 src/lfdev/vendored/   spec's status and blocking scripts, copied at the commit in
                       REVISION; never edited here (vendored_spec.py)
+commands.json         every command and its purpose, written from the parser by
+                      `python -m lfdev.commands`; the board snapshot reads it
 tests/                stdlib unittest, one file per module
 ```
 
