@@ -11,7 +11,7 @@ import sys
 import urllib.error
 from collections.abc import Sequence
 
-from lfdev import __version__, checks, doctor, forge, snapshot, views, work
+from lfdev import __version__, checks, doctor, forge, snapshot, spec_scripts, status, views, work
 
 
 def parser() -> argparse.ArgumentParser:
@@ -28,6 +28,14 @@ def parser() -> argparse.ArgumentParser:
         board.add_argument(f"--{name}", choices=("yes", "no") if name == "claimed" else None)
     reading = commands.add_parser("checks", help="a pull request's checks, at most every ten minutes")
     reading.add_argument("target", metavar="repo#number")
+    blocked = commands.add_parser("blocked", help="what a pull request is blocked on")
+    blocked.add_argument("target", metavar="repo#number")
+    record = commands.add_parser("status", help="record a requirement done, partial or open, and commit it")
+    record.add_argument("ident", metavar="requirement")
+    record.add_argument("state", choices=("done", "partial", "open"))
+    record.add_argument("--evidence", action="append", default=[], metavar="path[::test]")
+    record.add_argument("--landed", metavar="commit")
+    record.add_argument("--spec", metavar="path", help="a checkout of spec; default ../spec")
     pick = commands.add_parser("next", help="goals nobody has claimed, to pick up")
     for name in ("version", "area", "repo"):
         pick.add_argument(f"--{name}")
@@ -56,6 +64,15 @@ def _checks(target: str) -> int:
     return 1 if checks.verdict(found) == "failing" else 0
 
 
+def _blocked(target: str) -> int:
+    try:
+        repo, number = checks.parse_target(target)
+    except ValueError as broken:
+        print(f"lfdev: {broken}", file=sys.stderr)
+        return 2
+    return spec_scripts.script("what_is_blocking.py", repo, str(number))
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one command; with none named, print what there is."""
     args = parser().parse_args(argv)
@@ -68,6 +85,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return code
     if args.command == "checks":
         return _checks(args.target)
+    if args.command == "blocked":
+        return _blocked(args.target)
+    if args.command == "status":
+        code, said = status.record(
+            status.Asked(args.ident, args.state, args.evidence, args.landed, args.spec), doctor.run
+        )
+        print(said, file=sys.stdout if code == 0 else sys.stderr)
+        return code
     try:
         board = snapshot.load(snapshot.source())
     except snapshot.Unreadable as broken:
