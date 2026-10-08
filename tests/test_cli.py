@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import __version__, cli, doctor, snapshot
+from lfdev import __version__, checks, cli, doctor, forge, snapshot
 from tests.fixture import board
 
 
@@ -90,6 +90,34 @@ class Commands(unittest.TestCase):
         ):
             self.assertEqual(run(["board"])[0], 2)
         self.assertIn("lfdev: the board snapshot at /nowhere.json could not be read", err.getvalue())
+
+    def test_checks_read_and_shown(self):
+        found = [{"name": "tests", "status": "completed", "conclusion": "failure"}]
+        with (
+            mock.patch.object(forge, "token", return_value="t"),
+            mock.patch.object(checks, "checks", return_value=(found, None)) as read,
+        ):
+            code, said = run(["checks", "spec#9"])
+        self.assertEqual(code, 1, "a failing check fails the command")
+        self.assertIn("lemonfiber/spec#9: failing", said)
+        get = read.call_args.args[2]
+        with mock.patch.object(forge, "get", return_value={"ok": 1}) as fetched:
+            self.assertEqual(get("repos/x"), {"ok": 1})
+        fetched.assert_called_once_with("repos/x", "t")
+
+    def test_checks_passing(self):
+        found = [{"name": "tests", "status": "completed", "conclusion": "success"}]
+        with (
+            mock.patch.object(forge, "token", return_value="t"),
+            mock.patch.object(checks, "checks", return_value=(found, None)),
+        ):
+            self.assertEqual(run(["checks", "spec#9"])[0], 0)
+
+    def test_checks_refused(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(run(["checks", "not a target"])[0], 2)
+        self.assertIn("lfdev: 'not a target' is not", err.getvalue())
 
     def test_doctor(self):
         with mock.patch.object(doctor, "run", return_value=(1, "")):
