@@ -8,6 +8,7 @@ Verifies:
   - a document's `**Status:**` line says what its front matter says
   - the counts this repository's own prose states match what it contains
   - each version manifest's stated goal count matches the goals it locks
+  - each Draft proposal is in the shape the RFC process gives, with no identifier
 
 Exit 0 = clean, 1 = problems found.
 """
@@ -20,6 +21,7 @@ import re
 import sys
 import tomllib
 
+import metafm
 from patterns import ADR_CITE, ADR_FILE, REQ_DEF
 from patterns import CITE as REQ_CITE
 
@@ -141,6 +143,103 @@ def check_links():
             resolved = (p.parent / target).resolve()
             if not resolved.exists():
                 problems.append(f"{p.relative_to(ROOT)}: broken link -> {target}")
+    return problems
+
+
+#: Where Draft proposals are opened, one file each (GOV-R40).
+PROPOSALS = pathlib.Path("10-functional/proposals")
+#: The two files there that describe the shape rather than propose anything.
+PROPOSAL_SHAPES = ("README.md", "TEMPLATE.md")
+#: A proposal's file name: lower-case letters, digits and hyphens.
+PROPOSAL_FILE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}\.md$")
+PROPOSAL_KINDS = ("proposal", "gap")
+PROPOSAL_FIELDS = ("kind", "area", "title", "amends", "status")
+#: `## A — Getting started`: an area of the catalogue, as its page heads it.
+AREA = re.compile(r"^## ([A-Z]) — ", re.MULTILINE)
+#: A feature's identifier, which an `amends` may name.
+FEATURE = re.compile(r"^[A-Z]\d+$")
+#: A statement of behaviour: a bullet using one of RFC 2119's keywords.
+STATEMENT = re.compile(r"^- .*\b(MUST|SHOULD|MAY)\b", re.MULTILINE)
+
+
+def section(text: str, heading: str) -> str:
+    """The text under a `## heading`, to the next one, read line by line."""
+    lines = text.splitlines()
+    try:
+        start = next(n for n, line in enumerate(lines) if line.rstrip() == f"## {heading}")
+    except StopIteration:
+        return ""
+    end = next((n for n in range(start + 1, len(lines)) if lines[n].startswith("## ")), len(lines))
+    return "\n".join(lines[start + 1:end]).strip()
+
+
+def amendable(name: str) -> bool:
+    """Whether `amends` names a feature the catalogue holds or a page that exists."""
+    if FEATURE.match(name):
+        return any((ROOT / "10-functional" / "features").glob(f"*/{name.lower()}-*.md"))
+    return (ROOT / name).is_file() and not elsewhere(ROOT / name)
+
+
+def field_faults(front: dict, areas: set[str]) -> list[str]:
+    """What is wrong with a proposal's front matter."""
+    faults = []
+    unknown = sorted(set(front) - set(PROPOSAL_FIELDS))
+    if unknown:
+        faults.append(f"carries fields the shape does not: {', '.join(unknown)}")
+    if front.get("kind") not in PROPOSAL_KINDS:
+        faults.append(f"has kind {front.get('kind')!r}; it is one of {', '.join(PROPOSAL_KINDS)}")
+    if front.get("area") not in areas:
+        faults.append(f"names area {front.get('area')!r}, which the catalogue does not hold")
+    if not front.get("title"):
+        faults.append("has no title")
+    if front.get("status") != "draft":
+        faults.append(f"has status {front.get('status')!r}; a proposal is draft until approved")
+    amends = front.get("amends")
+    if amends and not amendable(amends):
+        faults.append(f"amends {amends!r}, which is neither a feature nor a page here")
+    return faults
+
+
+def body_faults(kind: str | None, amends: str | None, text: str) -> list[str]:
+    """What is wrong with what a proposal or a gap says."""
+    faults = []
+    if REQ_DEF.search(text):
+        faults.append("defines an identifier; identifiers are allocated on approval (GOV-R41)")
+    if kind == "proposal" and not STATEMENT.search(section(text, "Proposed behaviour")):
+        faults.append("has no statement under ## Proposed behaviour using MUST, SHOULD or MAY")
+    if kind == "gap" and not amends:
+        faults.append("is a gap and names no feature or page that is silent (amends)")
+    if kind == "gap" and not section(text, "What the specification does not say"):
+        faults.append("says nothing under ## What the specification does not say")
+    return faults
+
+
+def proposal_faults(path: pathlib.Path, areas: set[str]) -> list[str]:
+    """What is wrong with one proposal file, each fault a sentence."""
+    text = path.read_text(encoding="utf-8")
+    front = metafm.parse(text)
+    if front is None:
+        return ["has no front matter; copy TEMPLATE.md"]
+    named = [] if PROPOSAL_FILE.match(path.name) else [
+        "is not named with lower-case letters, digits and hyphens"]
+    return named + field_faults(front, areas) + body_faults(front.get("kind"), front.get("amends"), text)
+
+
+def check_proposals():
+    """Every Draft proposal that is not in the shape the RFC process gives."""
+    directory = ROOT / PROPOSALS
+    if not directory.is_dir():
+        return []
+    catalogue = ROOT / "10-functional" / "features" / "README.md"
+    areas = set(AREA.findall(catalogue.read_text(encoding="utf-8"))) if catalogue.is_file() else set()
+    problems = []
+    for path in sorted(directory.iterdir()):
+        if path.name in PROPOSAL_SHAPES or path.is_dir():
+            continue
+        if path.suffix != ".md":
+            problems.append(f"{path.relative_to(ROOT)}: is not a proposal; only Markdown files belong here")
+            continue
+        problems += [f"{path.relative_to(ROOT)} {fault}" for fault in proposal_faults(path, areas)]
     return problems
 
 
@@ -492,6 +591,7 @@ def main() -> int:
         + check_statuses()
         + counts
         + check_manifest_repos()
+        + check_proposals()
     ):
         if msg not in seen:
             seen.add(msg)
