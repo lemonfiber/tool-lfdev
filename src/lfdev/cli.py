@@ -11,7 +11,7 @@ import sys
 import urllib.error
 from collections.abc import Sequence
 
-from lfdev import __version__, checks, doctor, forge, snapshot, spec_scripts, status, views, work
+from lfdev import __version__, checks, decide, doctor, forge, snapshot, spec_scripts, status, views, work
 
 
 def parser() -> argparse.ArgumentParser:
@@ -36,6 +36,13 @@ def parser() -> argparse.ArgumentParser:
     record.add_argument("--evidence", action="append", default=[], metavar="path[::test]")
     record.add_argument("--landed", metavar="commit")
     record.add_argument("--spec", metavar="path", help="a checkout of spec; default ../spec")
+    decision = commands.add_parser("decide", help="record a decision in spec's decision log, and commit it")
+    decision.add_argument("decision", help="the decision, as it was made")
+    decision.add_argument(
+        "--where",
+        required=True,
+        help="the requirement or ADR it lives in, as links, or why it has neither yet",
+    )
     pick = commands.add_parser("next", help="goals nobody has claimed, to pick up")
     for name in ("version", "area", "repo"):
         pick.add_argument(f"--{name}")
@@ -80,7 +87,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser().print_help(sys.stdout)
         return 0
     if args.command == "doctor":
-        code, said = doctor.report(doctor.checks())
+        code, said = doctor.report(doctor.checks(doctor.run))
         print(said)
         return code
     if args.command == "checks":
@@ -90,6 +97,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "status":
         code, said = status.record(
             status.Asked(args.ident, args.state, args.evidence, args.landed, args.spec), doctor.run
+        )
+        print(said, file=sys.stdout if code == 0 else sys.stderr)
+        return code
+    if args.command == "decide":
+        code, said = decide.record(
+            args.decision, args.where, doctor.run, spec_scripts.run, datetime.date.today()
         )
         print(said, file=sys.stdout if code == 0 else sys.stderr)
         return code
