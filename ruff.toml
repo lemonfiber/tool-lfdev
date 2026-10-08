@@ -1,0 +1,33 @@
+# The tool's own lint. `lfdev` claims work, opens pull requests and reads every
+# repository's checks on a contributor's behalf, so a mistake in it is made in
+# every repository it touches. It is held to the organisation's floor below,
+# and selects nothing more.
+target-version = "py312"
+
+# Command lines, help text and the forge's addresses read better whole.
+line-length = 110
+
+[lint]
+# Correctness first — `F` is the half that finds undefined names and unreachable
+# code, `B` the half that finds the mistakes that still run. `ISC` is here for
+# one shape in particular: two adjacent strings inside a list are one string,
+# and the difference between that and a missing comma is invisible. The rest
+# keep the scripts reading alike, which matters when they are maintained by
+# whoever is passing.
+select = ["E", "W", "F", "B", "I", "SIM", "UP", "RUF", "EXE", "FURB", "ISC"]
+
+ignore = [
+    # These scripts quote the repository's own prose back in their messages, and
+    # it uses typographic dashes and quotes deliberately.
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    # Width, as above. The rules worth having here find undefined names and
+    # mistakes that still run.
+    "E501",
+]
+
+[format]
+# The CodeQL gate is a copy of `spec`'s, held byte for byte to it by the
+# shared-files check, so the formatter leaves it as `spec` wrote it.
+exclude = ["scripts/no_open_codeql_alert.py"]

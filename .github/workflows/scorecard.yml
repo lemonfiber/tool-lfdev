@@ -1,0 +1,41 @@
+# When this repository asks for its supply-chain posture check.
+#
+# The check itself is lemonfiber/spec's, called rather than copied — `Q-R56`
+# asks for that, and six byte-identical copies of a 29-line file were what it
+# had instead. Only the triggers live here, because only they are about this
+# repository: `branch_protection_rule` and the schedule are events about this
+# repository, and a reusable workflow is not a place events arrive.
+#
+# The call passes `SCORECARD_TOKEN` by name, the one secret the check reads,
+# rather than every secret this repository can see. It is an org secret with no
+# write scope. Scorecard publishes its result so somebody outside the org can
+# read it without being trusted with anything, which is the point of `Q-R59`.
+name: scorecard
+
+on:
+  workflow_dispatch:
+  # A change to this repository's protection is a change to its posture, and it
+  # is the one event that says so without waiting for the week to turn.
+  branch_protection_rule:
+  # Weekly on the default branch, which is where the score is read from. The
+  # checks Scorecard scores are settings and policies a commit rarely moves, so a
+  # push to `main` is not a trigger (Q-R76).
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  scorecard:
+    permissions:
+      # Writing the SARIF back is what puts findings in the security tab.
+      security-events: write
+      # Scorecard signs its result, so the published entry traces to this run.
+      id-token: write
+      contents: read
+      # Reading the workflow list is how it judges the pipeline itself.
+      actions: read
+    secrets:
+      SCORECARD_TOKEN: ${{ secrets.SCORECARD_TOKEN }}
+    uses: lemonfiber/spec/.github/workflows/scorecard.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42

@@ -1,0 +1,36 @@
+# The maintainer queue flag. Triggers are declared here because a reusable
+# cannot declare its caller's; the behaviour lives in the spec repo. OPS-R26, OPS-R27.
+#
+# Every workflow that supplies a required check is named, not `ci` alone. The flag
+# says a pull request passed CI, and that sentence is only true once all of them
+# have finished — `ci` carries the hygiene, security, sign-off and spec checks
+# and the tests, and `codeql` the analysis and its alert gate. Named
+# here rather than in the reusable because the wait list is read back out of this
+# file, so the two are the same words.
+name: awaiting-maintainer
+on:
+  # `codeql` is in this list because of what its `alerts` job now does. The list
+  # is what re-asks the question when a workflow finishes; a gating workflow left
+  # out of it can be the last one to go green, with nothing afterwards to notice
+  # that the pull request became mergeable. The flag then never goes up and
+  # nothing says why.
+  workflow_run:
+    workflows: [ci, codeql]
+    types: [completed]
+  pull_request_review:
+    types: [submitted]
+  # Fork PRs carry a read-only token under `pull_request`, so the close event has
+  # to run in the base repo's context to be able to edit a label at all.
+  pull_request_target:
+    types: [closed]
+permissions:
+  contents: read
+
+jobs:
+  awaiting:
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: lemonfiber/spec/.github/workflows/awaiting-maintainer.yml@477a2b071e4c41ce5527090d86da8106d01dba94 # v1.0.42
+    secrets:
+      DISCORD_MAINTAINERS_WEBHOOK: ${{ secrets.DISCORD_MAINTAINERS_WEBHOOK }}
