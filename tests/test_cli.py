@@ -22,6 +22,7 @@ from lfdev import (
     doctor,
     forge,
     goals,
+    proposal,
     snapshot,
     spec_scripts,
     status,
@@ -220,6 +221,19 @@ class Commands(unittest.TestCase):
             self.assertEqual((ident, data["format"]), ("B1-R1", 1))
             self.assertEqual(post("repos/x", {"a": 1}), {"ok": 1})
         posted.assert_called_once_with("repos/x", "t", {"a": 1})
+
+    def test_propose_and_gap_read_what_was_asked(self):
+        with (
+            mock.patch.object(forge, "token", return_value="t"),
+            mock.patch.object(proposal, "propose", return_value=(0, "opened")) as opened,
+        ):
+            argv = ["propose", "--area", "B", "--title", "Scans", "--statement", "It MUST.", "--amend", "B1"]
+            self.assertEqual(run(argv), (0, "opened\n"))
+            given = opened.call_args.args[0]
+            self.assertEqual((given.kind, given.amends, given.statements), ("proposal", "B1", ["It MUST."]))
+            run(["gap", "--area", "B", "--title", "Silence", "--amends", "B1", "--missing", "When."])
+            given = opened.call_args.args[0]
+            self.assertEqual((given.kind, given.missing), ("gap", "When."))
 
     def test_claim_without_a_board(self):
         err = io.StringIO()

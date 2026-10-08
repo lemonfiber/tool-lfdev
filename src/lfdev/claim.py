@@ -14,21 +14,14 @@ as the cap allows (REPO-R76).
 from __future__ import annotations
 
 import pathlib
-import re
 import urllib.error
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from lfdev import forge, tracker
 from lfdev.spec_scripts import Runner
 from lfdev.status import DEFAULT, Asker
-
-#: A repository's address on the forge, as `git remote get-url` gives it.
-REMOTE = re.compile(r"github\.com[:/](?P<owner>[\w.-]+)/(?P<repo>[\w.-]+?)(?:\.git)?$")
-
-#: One POST to the forge: its path and body, then the JSON it answers with.
-Poster = Callable[[str, Mapping[str, Any]], Any]
 
 
 @dataclass(frozen=True)
@@ -79,13 +72,15 @@ def claimable(board: Mapping[str, Any], ident: str, repo: str) -> Claimable:
 def this_repository(ask: Asker) -> str:
     """The organisation's repository this clone's `origin` names, or why not."""
     code, url = ask(["git", "remote", "get-url", "origin"])
-    found = REMOTE.search(url) if code == 0 else None
+    found = forge.REMOTE.search(url) if code == 0 else None
     if found is None or found["owner"] != forge.ORG:
         raise ValueError(f"origin is not a {forge.ORG} repository on the forge")
     return found["repo"]
 
 
-def claim(ident: str, board: Mapping[str, Any], ask: Asker, run: Runner, post: Poster) -> tuple[int, str]:
+def claim(
+    ident: str, board: Mapping[str, Any], ask: Asker, run: Runner, post: forge.Poster
+) -> tuple[int, str]:
     """Cut the branch, commit, push and open the draft; the exit code and what to say."""
     code, top = ask(["git", "rev-parse", "--show-toplevel"])
     if code != 0:

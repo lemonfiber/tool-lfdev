@@ -14,9 +14,7 @@ import pathlib
 import re
 import tomllib
 import urllib.error
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
 
 from lfdev import forge, tracker
 from lfdev.spec_scripts import Runner
@@ -36,9 +34,6 @@ REQUIREMENTS = "OPS-R30, OPS-R31"
 VERSION = re.compile(r"\d+\.\d+\.\d+")
 #: The line the goals list opens on.
 GOALS = re.compile(r"^goals\s*=\s*\[")
-
-#: One POST to the forge: its path and body, then the JSON it answers with.
-Poster = Callable[[str, Mapping[str, Any]], Any]
 
 
 @dataclass(frozen=True)
@@ -110,7 +105,7 @@ def describe(asked: Asked, locked: bool) -> str:
     return "\n".join(lines)
 
 
-def propose(asked: Asked, ask: Asker, run: Runner, post: Poster) -> tuple[int, str]:
+def propose(asked: Asked, ask: Asker, run: Runner, post: forge.Poster) -> tuple[int, str]:
     """Rewrite, commit, push and open the pull request; the exit code and what to say."""
     if not VERSION.fullmatch(asked.version):
         return 2, f"{asked.version!r} is not a version (major.minor.patch)"
