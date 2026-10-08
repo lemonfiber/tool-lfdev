@@ -15,12 +15,12 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from lfdev import forge
+
 #: The least time between two reads of one pull request's checks.
 FLOOR = datetime.timedelta(minutes=10)
 #: `owner/repo#123` or `repo#123`, a repository in the organisation then.
 TARGET = re.compile(r"^(?:(?P<owner>[\w.-]+)/)?(?P<repo>[\w.-]+)#(?P<number>\d+)$")
-#: The organisation a bare repository name is read in.
-ORG = "lemonfiber"
 
 Getter = Callable[[str], Any]
 
@@ -30,7 +30,7 @@ def parse_target(text: str) -> tuple[str, int]:
     match = TARGET.match(text)
     if match is None:
         raise ValueError(f"{text!r} is not owner/repo#number or repo#number")
-    owner = match["owner"] or ORG
+    owner = match["owner"] or forge.ORG
     return f"{owner}/{match['repo']}", int(match["number"])
 
 

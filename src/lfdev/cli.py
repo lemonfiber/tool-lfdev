@@ -11,7 +11,19 @@ import sys
 import urllib.error
 from collections.abc import Sequence
 
-from lfdev import __version__, checks, decide, doctor, forge, snapshot, spec_scripts, status, views, work
+from lfdev import (
+    __version__,
+    checks,
+    decide,
+    doctor,
+    forge,
+    goals,
+    snapshot,
+    spec_scripts,
+    status,
+    views,
+    work,
+)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -43,6 +55,10 @@ def parser() -> argparse.ArgumentParser:
         required=True,
         help="the requirement or ADR it lives in, as links, or why it has neither yet",
     )
+    promise = commands.add_parser("goals", help="change what a version promises, and open the pull request")
+    promise.add_argument("version")
+    promise.add_argument("--add", action="extend", nargs="+", default=[], metavar="requirement")
+    promise.add_argument("--remove", action="extend", nargs="+", default=[], metavar="requirement")
     pick = commands.add_parser("next", help="goals nobody has claimed, to pick up")
     for name in ("version", "area", "repo"):
         pick.add_argument(f"--{name}")
@@ -80,6 +96,19 @@ def _blocked(target: str) -> int:
     return spec_scripts.script("what_is_blocking.py", repo, str(number))
 
 
+def _goals(asked: goals.Asked) -> int:
+    try:
+        auth = forge.token()
+    except forge.Unauthenticated as broken:
+        print(f"lfdev: {broken}", file=sys.stderr)
+        return 2
+    code, said = goals.propose(
+        asked, doctor.run, spec_scripts.run, lambda path, body: forge.post(path, auth, body)
+    )
+    print(said, file=sys.stdout if code == 0 else sys.stderr)
+    return code
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one command; with none named, print what there is."""
     args = parser().parse_args(argv)
@@ -106,6 +135,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(said, file=sys.stdout if code == 0 else sys.stderr)
         return code
+    if args.command == "goals":
+        return _goals(goals.Asked(args.version, args.add, args.remove))
     try:
         board = snapshot.load(snapshot.source())
     except snapshot.Unreadable as broken:
