@@ -15,7 +15,7 @@ on:
   # that the pull request became mergeable. The flag then never goes up and
   # nothing says why.
   workflow_run:
-    workflows: [ci, codeql]
+    workflows: [ci, sonar, codeql]
     types: [completed]
   pull_request_review:
     types: [submitted]
