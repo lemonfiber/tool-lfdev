@@ -56,6 +56,7 @@ class Claim(unittest.TestCase):
         self.answers = {
             "rev-parse --show-toplevel": (0, "/work/lemonfiber"),
             "remote get-url origin": (0, "git@github.com:lemonfiber/lemonfiber.git"),
+            "-C /work/lemonfiber var GIT_COMMITTER_IDENT": (0, "Ana Lima <ana@example.org> 1760000000 +0200"),
         }
 
     def ask(self, args):
@@ -90,7 +91,8 @@ class Claim(unittest.TestCase):
         ((path, body),) = self.posted
         self.assertEqual(path, "repos/lemonfiber/lemonfiber/pulls")
         self.assertTrue(body["draft"])
-        self.assertIn("Spec: B1-R1", body["body"])
+        self.assertEqual(body["title"], "chore(claim): B1-R1")
+        self.assertTrue(body["body"].endswith("Spec: B1-R1\n\nSigned-off-by: Ana Lima <ana@example.org>"))
         self.assertIn("The tool MUST run a form.", body["body"])
 
     def test_https_remotes_are_read_too(self):

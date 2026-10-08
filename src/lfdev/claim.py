@@ -113,12 +113,12 @@ def claim(
     body = (
         f"Claiming {ident}: {wanted.text}\n\n"
         "A draft until the work is ready; the board shows the requirement as claimed meanwhile.\n\n"
-        f"Spec: {ident}"
+        + forge.ending(ask, root, ident)
     )
     try:
         pull = post(
             f"repos/{forge.ORG}/{wanted.repo}/pulls",
-            {"title": f"claim: {ident}", "head": branch, "base": DEFAULT, "body": body, "draft": True},
+            {"title": f"chore(claim): {ident}", "head": branch, "base": DEFAULT, "body": body, "draft": True},
         )
     except urllib.error.URLError as broken:
         return 1, f"{branch} is pushed, and the draft pull request was not opened: {broken}"
