@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
+import os
+import pathlib
 import runpy
+import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import __version__, cli
+from lfdev import __version__, cli, doctor, snapshot
+from tests.fixture import board
 
 
 def run(argv: list[str]) -> tuple[int, str]:
@@ -40,6 +45,57 @@ class CommandLine(unittest.TestCase):
             runpy.run_module("lfdev", run_name="__main__")
         self.assertEqual(ran.exception.code, 0)
         self.assertIn("usage: lfdev", out.getvalue())
+
+
+class Commands(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        path = pathlib.Path(self.tmp.name, "board.json")
+        path.write_text(json.dumps(board()), "utf-8")
+        patch = mock.patch.dict(os.environ, {snapshot.SOURCE_VARIABLE: str(path)})
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_board_by_maturity_filtered(self):
+        code, said = run(["board", "--area", "B"])
+        self.assertEqual(code, 0)
+        self.assertIn("read at 2026-10-08T00:00:00Z · spec at aaaaaaa", said)
+        self.assertIn("1 of 2 features", said)
+        self.assertIn("building (1)\n  B1     Forms  [area B, 4 open, 1 claimed]", said)
+        self.assertIn("shipped (0)", said)
+
+    def test_board_refuses_a_claimed_value_it_does_not_know(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(run(["board", "--claimed", "maybe"])[0], 2)
+
+    def test_next_lists_unclaimed_goals_by_version(self):
+        code, said = run(["next"])
+        self.assertEqual(code, 0)
+        self.assertIn("3 goals nobody has claimed", said)
+        self.assertIn(
+            "0.3.0\n  B1-R1      open      lemonfiber\n             The tool MUST run a form.", said
+        )
+        self.assertIn("  GOV-R1     unknown   no tracker yet", said)
+        self.assertIn("0.4.0\n  B1-R3", said)
+
+    def test_next_filtered(self):
+        self.assertIn("1 goals", run(["next", "--repo", "lemonfiber"])[1])
+
+    def test_a_snapshot_that_cannot_be_read(self):
+        err = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {snapshot.SOURCE_VARIABLE: "/nowhere.json"}),
+            contextlib.redirect_stderr(err),
+        ):
+            self.assertEqual(run(["board"])[0], 2)
+        self.assertIn("lfdev: the board snapshot at /nowhere.json could not be read", err.getvalue())
+
+    def test_doctor(self):
+        with mock.patch.object(doctor, "run", return_value=(1, "")):
+            code, said = run(["doctor"])
+        self.assertEqual(code, 1)
+        self.assertIn("FIX  hooks on", said)
 
 
 if __name__ == "__main__":
