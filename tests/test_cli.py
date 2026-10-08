@@ -12,7 +12,20 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import __version__, checks, cli, decide, doc, doctor, forge, goals, snapshot, spec_scripts, status
+from lfdev import (
+    __version__,
+    checks,
+    claim,
+    cli,
+    decide,
+    doc,
+    doctor,
+    forge,
+    goals,
+    snapshot,
+    spec_scripts,
+    status,
+)
 from tests.fixture import board
 
 
@@ -195,6 +208,28 @@ class Commands(unittest.TestCase):
             self.assertEqual((url, fetch), ("docs.lemonfiber.app/a/", snapshot.fetch))
             self.assertEqual(get("repos/x"), {"ok": 1})
         got.assert_called_once_with("repos/x", "t")
+
+    def test_claim_reads_the_board_and_acts_as_the_person(self):
+        with (
+            mock.patch.object(forge, "token", return_value="t"),
+            mock.patch.object(forge, "post", return_value={"ok": 1}) as posted,
+            mock.patch.object(claim, "claim", return_value=(0, "claimed")) as claimed,
+        ):
+            self.assertEqual(run(["claim", "B1-R1"]), (0, "claimed\n"))
+            ident, data, _, _, post = claimed.call_args.args
+            self.assertEqual((ident, data["format"]), ("B1-R1", 1))
+            self.assertEqual(post("repos/x", {"a": 1}), {"ok": 1})
+        posted.assert_called_once_with("repos/x", "t", {"a": 1})
+
+    def test_claim_without_a_board(self):
+        err = io.StringIO()
+        with (
+            mock.patch.object(forge, "token", return_value="t"),
+            mock.patch.dict(os.environ, {snapshot.SOURCE_VARIABLE: "/nowhere/board.json"}),
+            contextlib.redirect_stderr(err),
+        ):
+            self.assertEqual(run(["claim", "B1-R1"])[0], 2)
+        self.assertIn("could not be read", err.getvalue())
 
     def test_doctor(self):
         with mock.patch.object(doctor, "run", return_value=(1, "")):
