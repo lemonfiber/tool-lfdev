@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import __version__, checks, cli, doctor, forge, snapshot, spec_scripts, status
+from lfdev import __version__, checks, cli, decide, doctor, forge, snapshot, spec_scripts, status
 from tests.fixture import board
 
 
@@ -141,6 +141,20 @@ class Commands(unittest.TestCase):
             contextlib.redirect_stderr(err),
         ):
             self.assertEqual(run(["status", "A1-R1", "done", "--evidence", "x"])[0], 2)
+        self.assertIn("on main", err.getvalue())
+
+    def test_decide_records_a_row(self):
+        with mock.patch.object(decide, "record", return_value=(0, "recorded")) as rec:
+            self.assertEqual(run(["decide", "Do it", "--where", "[A1](a1.md)"]), (0, "recorded\n"))
+        self.assertEqual(rec.call_args.args[:2], ("Do it", "[A1](a1.md)"))
+
+    def test_decide_refused(self):
+        err = io.StringIO()
+        with (
+            mock.patch.object(decide, "record", return_value=(2, "on main")),
+            contextlib.redirect_stderr(err),
+        ):
+            self.assertEqual(run(["decide", "Do it", "--where", "x"])[0], 2)
         self.assertIn("on main", err.getvalue())
 
     def test_doctor(self):
