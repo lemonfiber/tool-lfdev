@@ -14,6 +14,7 @@ from collections.abc import Callable, Sequence
 from lfdev import (
     __version__,
     checks,
+    claim,
     decide,
     doc,
     doctor,
@@ -60,6 +61,8 @@ def parser() -> argparse.ArgumentParser:
     promise.add_argument("version")
     promise.add_argument("--add", action="extend", nargs="+", default=[], metavar="requirement")
     promise.add_argument("--remove", action="extend", nargs="+", default=[], metavar="requirement")
+    take = commands.add_parser("claim", help="claim a requirement with a draft pull request here")
+    take.add_argument("ident", metavar="requirement")
     page = commands.add_parser("doc", help="the repository and file a page on the sites is rendered from")
     page.add_argument("url")
     pick = commands.add_parser("next", help="goals nobody has claimed, to pick up")
@@ -114,6 +117,16 @@ def _as_person(act: Callable[[str], tuple[int, str]]) -> int:
     return _say(*act(auth))
 
 
+def _claim(ident: str, auth: str) -> tuple[int, str]:
+    try:
+        board = snapshot.load(snapshot.source())
+    except snapshot.Unreadable as broken:
+        return 2, f"lfdev: {broken}"
+    return claim.claim(
+        ident, board, doctor.run, spec_scripts.run, lambda path, body: forge.post(path, auth, body)
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one command; with none named, print what there is."""
     args = parser().parse_args(argv)
@@ -138,6 +151,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _say(
             *decide.record(args.decision, args.where, doctor.run, spec_scripts.run, datetime.date.today())
         )
+    if args.command == "claim":
+        return _as_person(lambda auth: _claim(args.ident, auth))
     if args.command == "doc":
         return _as_person(lambda auth: doc.doc(args.url, snapshot.fetch, lambda path: forge.get(path, auth)))
     if args.command == "goals":
