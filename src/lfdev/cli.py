@@ -10,6 +10,7 @@ import datetime
 import sys
 import urllib.error
 from collections.abc import Callable, Sequence
+from typing import Any
 
 from lfdev import (
     __version__,
@@ -20,6 +21,7 @@ from lfdev import (
     doctor,
     forge,
     goals,
+    proposal,
     snapshot,
     spec_scripts,
     status,
@@ -63,6 +65,18 @@ def parser() -> argparse.ArgumentParser:
     promise.add_argument("--remove", action="extend", nargs="+", default=[], metavar="requirement")
     take = commands.add_parser("claim", help="claim a requirement with a draft pull request here")
     take.add_argument("ident", metavar="requirement")
+    offer = commands.add_parser("propose", help="open a proposal pull request against the specification")
+    offer.add_argument("--area", required=True)
+    offer.add_argument("--title", required=True)
+    offer.add_argument("--problem", default="")
+    offer.add_argument("--statement", action="append", default=[], help="a MUST, SHOULD or MAY statement")
+    offer.add_argument("--rationale", default="")
+    offer.add_argument("--amends", "--amend", metavar="feature-or-page")
+    silent = commands.add_parser("gap", help="report what the specification does not say, as a pull request")
+    silent.add_argument("--area", required=True)
+    silent.add_argument("--title", required=True)
+    silent.add_argument("--amends", required=True, metavar="feature-or-page", help="the one that is silent")
+    silent.add_argument("--missing", required=True, help="what it does not say")
     page = commands.add_parser("doc", help="the repository and file a page on the sites is rendered from")
     page.add_argument("url")
     pick = commands.add_parser("next", help="goals nobody has claimed, to pick up")
@@ -117,14 +131,22 @@ def _as_person(act: Callable[[str], tuple[int, str]]) -> int:
     return _say(*act(auth))
 
 
-def _claim(ident: str, auth: str) -> tuple[int, str]:
+def _asked(args: argparse.Namespace) -> proposal.Asked:
+    """What `propose` or `gap` was asked to open."""
+    if args.command == "gap":
+        return proposal.Asked("gap", args.area, args.title, args.amends, missing=args.missing)
+    return proposal.Asked(
+        "proposal", args.area, args.title, args.amends, args.problem, args.statement, args.rationale
+    )
+
+
+def _on_board(auth: str, act: Callable[..., tuple[int, str]], *given: Any) -> tuple[int, str]:
+    """Run something that reads the board snapshot and posts as the person."""
     try:
         board = snapshot.load(snapshot.source())
     except snapshot.Unreadable as broken:
         return 2, f"lfdev: {broken}"
-    return claim.claim(
-        ident, board, doctor.run, spec_scripts.run, lambda path, body: forge.post(path, auth, body)
-    )
+    return act(*given, board, doctor.run, spec_scripts.run, lambda path, body: forge.post(path, auth, body))
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -152,7 +174,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             *decide.record(args.decision, args.where, doctor.run, spec_scripts.run, datetime.date.today())
         )
     if args.command == "claim":
-        return _as_person(lambda auth: _claim(args.ident, auth))
+        return _as_person(lambda auth: _on_board(auth, claim.claim, args.ident))
+    if args.command in ("propose", "gap"):
+        return _as_person(lambda auth: _on_board(auth, proposal.propose, _asked(args)))
     if args.command == "doc":
         return _as_person(lambda auth: doc.doc(args.url, snapshot.fetch, lambda path: forge.get(path, auth)))
     if args.command == "goals":

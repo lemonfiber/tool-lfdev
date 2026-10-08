@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from lfdev import __version__
@@ -21,6 +22,10 @@ ORG = "lemonfiber"
 #: How the tool names itself to every address it reads. A site behind a CDN
 #: refuses the default `Python-urllib` name.
 USER_AGENT = f"lfdev/{__version__}"
+#: A repository's address on the forge, as `git remote get-url` gives it.
+REMOTE = re.compile(r"github\.com[:/](?P<owner>[\w.-]+)/(?P<repo>[\w.-]+?)(?:\.git)?$")
+#: One POST to the forge: its path and body, then the JSON it answers with.
+Poster = Callable[[str, Mapping[str, Any]], Any]
 #: The REST API's root.
 API = "https://api.github.com"
 #: How long a request may take before it is given up, in seconds.
