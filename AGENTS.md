@@ -17,6 +17,8 @@ repository. Spec:
 
 ```
 src/lfdev/cli.py      the command line; each subcommand gets a module of its own
+src/lfdev/vendored/   spec's status and blocking scripts, copied at the commit in
+                      REVISION; never edited here (vendored_spec.py)
 tests/                stdlib unittest, one file per module
 ```
 
@@ -26,6 +28,9 @@ tests/                stdlib unittest, one file per module
   tool run in CI and through `just`; nothing is installed for the tool itself.
 - Every subcommand is tested, and CI holds the package at 100% line and branch
   coverage.
+- `src/lfdev/vendored/` is spec's, byte for byte. `spec-drift` fails a pull
+  request where it differs from spec's main, and `spec-bump` opens the pull
+  request that takes it: `python -m lfdev.vendored_spec sync <commit>`.
 
 ## Checks
 

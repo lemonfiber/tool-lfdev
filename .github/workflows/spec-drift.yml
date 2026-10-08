@@ -1,0 +1,43 @@
+# The copy of spec's scripts in `src/lfdev/vendored/` is a copy, and a copy goes
+# stale in silence. This holds it to the commit its `REVISION` names, byte for
+# byte, and to spec's main, and fails a pull request where either has moved,
+# printing the one command that takes it. `spec-bump` opens that pull request
+# itself when spec's main moves past the copy, so an author who came for
+# something else is seldom the one handed it.
+name: spec-drift
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # The floor, for a week without a pull request while spec moved.
+    - cron: "30 7 * * 1"
+
+permissions:
+  contents: read
+
+# A pull request pushed again cancels the run on its old head, which nobody
+# will read and which holds runners the org shares (Q-R75). Every other event
+# is grouped by its own run, so it is never cancelled and never cancels.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  spec-drift:
+    name: spec-drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+      - name: The copy is spec, at its commit and at main
+        env:
+          PYTHONPATH: src
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m lfdev.vendored_spec check
