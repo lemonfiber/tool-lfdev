@@ -22,7 +22,6 @@ from __future__ import annotations
 import os
 import pathlib
 import sys
-import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 
@@ -121,7 +120,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             code, said = check(main_head())
             print(said if code == 0 else f"::error::{said}")
             return code
-    except (OSError, urllib.error.URLError) as broken:
+    except OSError as broken:  # a URLError is one
         print(f"::error::spec could not be read: {broken}")
         return 2
     print(__doc__.split("Usage:")[1].split("`check`")[0].rstrip())
