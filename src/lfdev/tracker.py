@@ -19,7 +19,7 @@ FILE = "status.toml"
 #: A tracker split by feature.
 DIRECTORY = "status"
 #: A requirement's identifier, the whole of what may name a tracker's file.
-IDENTIFIER = re.compile(r"[A-Z][A-Z0-9]*-R[0-9]+")
+IDENTIFIER = re.compile(r"[A-Z][A-Z0-9]*-R\d+")
 #: What a new tracker opens with.
 HEADER = (
     "# What this repository implements, one row per requirement (OPS-R74);\n"

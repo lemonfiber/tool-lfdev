@@ -12,6 +12,11 @@ from lfdev import spec_scripts, status
 ROW = status.Asked("A1-R1", "done", ["src/a.rs"], None, None)
 
 
+def rows_written(root):
+    """The rows the tracker in a repository holds."""
+    return tomllib.loads((root / "status.toml").read_text("utf-8"))["requirement"]
+
+
 class Repo(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -40,16 +45,13 @@ class Repo(unittest.TestCase):
 
         return run
 
-    def rows_written(self):
-        return tomllib.loads((self.root / "status.toml").read_text("utf-8"))["requirement"]
-
 
 class Record(Repo):
     def test_writes_checks_and_commits(self):
         code, said = status.record(ROW, self.ask, self.runner())
         self.assertEqual(code, 0)
         self.assertEqual(said, "A1-R1 is done in status.toml, committed")
-        self.assertEqual(self.rows_written()[0]["evidence"], ["src/a.rs"])
+        self.assertEqual(rows_written(self.root)[0]["evidence"], ["src/a.rs"])
         check, add, commit = self.ran
         self.assertEqual(check[2:], ["check", "--spec", "spec", "--repo-root", "repo"])
         self.assertEqual(self.where, [self.root.parent.resolve(), self.root, self.root])
