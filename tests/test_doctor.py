@@ -36,7 +36,7 @@ class Doctor(unittest.TestCase):
     def test_signing_needs_both_the_switch_and_a_key(self):
         half = {**READY, ("git", "config", "--get", "user.signingkey"): (1, "")}
         found = {c.name: c.ok for c in doctor.checks(runner(half))}
-        self.assertEqual(found["commits signed"], False)
+        self.assertFalse(found["commits signed"])
 
 
 class Run(unittest.TestCase):
