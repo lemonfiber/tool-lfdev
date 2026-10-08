@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lfdev import __version__, checks, cli, decide, doctor, forge, goals, snapshot, spec_scripts, status
+from lfdev import __version__, checks, cli, decide, doc, doctor, forge, goals, snapshot, spec_scripts, status
 from tests.fixture import board
 
 
@@ -183,6 +183,18 @@ class Commands(unittest.TestCase):
                 self.assertEqual(run(["goals", "0.18.0", "--add", "A1-R1"])[0], 2)
         self.assertIn("no token", err.getvalue())
         self.assertIn("on main", err.getvalue())
+
+    def test_doc_reads_as_the_person(self):
+        with (
+            mock.patch.object(forge, "token", return_value="t"),
+            mock.patch.object(forge, "get", return_value={"ok": 1}) as got,
+            mock.patch.object(doc, "doc", return_value=(0, "where")) as answered,
+        ):
+            self.assertEqual(run(["doc", "docs.lemonfiber.app/a/"]), (0, "where\n"))
+            url, fetch, get = answered.call_args.args
+            self.assertEqual((url, fetch), ("docs.lemonfiber.app/a/", snapshot.fetch))
+            self.assertEqual(get("repos/x"), {"ok": 1})
+        got.assert_called_once_with("repos/x", "t")
 
     def test_doctor(self):
         with mock.patch.object(doctor, "run", return_value=(1, "")):
