@@ -1,0 +1,170 @@
+# Take spec's scripts, so that nobody else has to.
+#
+# `spec-drift` fails every pull request here once spec's main has moved past the
+# copy in `src/lfdev/vendored/`. This takes the new copy instead: it opens one
+# pull request on a branch of its own, signed by the release App, and arms it to
+# merge itself when the suite passes against the new copy. One whose suite fails
+# is left for a person: spec changed something `lfdev` relies on.
+name: spec-bump
+
+on:
+  # How spec asks, once it dispatches on a change to the scripts.
+  workflow_dispatch:
+  # The floor, for a dispatch that never arrived.
+  schedule:
+    - cron: "45 7 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  # One catch-up at a time, and the newest wins.
+  group: spec-bump
+  cancel-in-progress: true
+
+env:
+  BRANCH: chore/take-the-spec-scripts
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # The commit has to be signed, and only a commit GitHub makes for an App
+      # is; a pull request the workflow's own token opens also runs no checks.
+      - name: Mint a token that can open a pull request here
+        id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Is the copy behind spec's main
+        id: behind
+        env:
+          PYTHONPATH: src
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          head="$(python -c 'from lfdev.vendored_spec import main_head; print(main_head())')"
+          echo "head=${head}" >> "$GITHUB_OUTPUT"
+          echo "pin=$(tr -d '[:space:]' < src/lfdev/vendored/REVISION)" >> "$GITHUB_OUTPUT"
+          if python -m lfdev.vendored_spec check; then
+            echo "moved=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "moved=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Take the copy and run the suite against it
+        id: build
+        if: steps.behind.outputs.moved == 'yes'
+        continue-on-error: true
+        env:
+          PYTHONPATH: src
+          HEAD_SHA: ${{ steps.behind.outputs.head }}
+        run: |
+          set -euo pipefail
+          python -m lfdev.vendored_spec sync "$HEAD_SHA"
+          python -m unittest discover -s tests -t .
+
+      - name: Put the copy on the branch, signed
+        id: commit
+        if: steps.behind.outputs.moved == 'yes'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.behind.outputs.head }}
+          PIN: ${{ steps.behind.outputs.pin }}
+        run: |
+          set -euo pipefail
+          base="$(gh api "repos/${REPO}/commits/main" --jq .sha)"
+          # Built on a scratch ref and moved across in one step, so the branch is
+          # never equal to main, which would close its open pull request.
+          staging="${BRANCH}-staging"
+          if gh api "repos/${REPO}/git/ref/heads/${staging}" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${REPO}/git/refs/heads/${staging}" -F sha="${base}" -F force=true >/dev/null
+          else
+            gh api --method POST "repos/${REPO}/git/refs" -f ref="refs/heads/${staging}" -f sha="${base}" >/dev/null
+          fi
+          python3 - "$REPO" "$staging" "$base" "$HEAD_SHA" "$PIN" <<'PY' > request.json
+          import base64
+          import json
+          import pathlib
+          import sys
+
+          repo, branch, base, head, pin = sys.argv[1:6]
+          here = pathlib.Path("src/lfdev/vendored")
+          files = sorted(p for p in here.iterdir() if p.name == "REVISION" or p.suffix == ".py")
+          print(json.dumps({
+              "query": ("mutation($input: CreateCommitOnBranchInput!) "
+                        "{ createCommitOnBranch(input: $input) { commit { oid } } }"),
+              "variables": {"input": {
+                  "branch": {"repositoryNameWithOwner": repo, "branchName": branch},
+                  "expectedHeadOid": base,
+                  "message": {
+                      "headline": f"chore(vendored): take spec {head[:8]}",
+                      "body": (f"lfdev runs spec's status and blocking scripts from a copy, "
+                               f"and spec's main has moved past it. Was {pin}.\n\n"
+                               "Spec: REPO-R74\n"
+                               "Signed-off-by: lemonfiber release <release@lemonfiber.app>"),
+                  },
+                  "fileChanges": {"additions": [
+                      {"path": str(p), "contents": base64.b64encode(p.read_bytes()).decode()}
+                      for p in files
+                  ]},
+              }},
+          }))
+          PY
+          built="$(gh api graphql --input request.json --jq '.data.createCommitOnBranch.commit.oid')"
+          if ! printf '%s' "$built" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::the commit was not created; got '${built}'"
+            exit 1
+          fi
+          if gh api "repos/${REPO}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${REPO}/git/refs/heads/${BRANCH}" -F sha="${built}" -F force=true >/dev/null
+          else
+            gh api --method POST "repos/${REPO}/git/refs" -f ref="refs/heads/${BRANCH}" -f sha="${built}" >/dev/null
+          fi
+          gh api --method DELETE "repos/${REPO}/git/refs/heads/${staging}" >/dev/null 2>&1 || true
+
+      - name: Open the pull request, and arm it where the suite passed
+        if: steps.behind.outputs.moved == 'yes'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.behind.outputs.head }}
+          PIN: ${{ steps.behind.outputs.pin }}
+          CLEAN: ${{ steps.build.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$CLEAN" = "success" ]; then
+            verdict="The suite passes against the new copy."
+          else
+            verdict="**The suite fails against the new copy**: spec changed something lfdev relies on. Read the failing run before merging."
+          fi
+          number="$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // ""')"
+          if [ -z "$number" ]; then
+            created="$(gh pr create --repo "$REPO" --head "$BRANCH" --base main \
+              --title "chore(vendored): take spec ${HEAD_SHA:0:8}" \
+              --body "$(printf '%s\n' \
+                "spec's main has moved past the copy of its scripts in \`src/lfdev/vendored/\`, so \`spec-drift\` would fail every pull request here." \
+                "" "- was: \`${PIN}\`" "- now: \`${HEAD_SHA}\`" "" "${verdict}" "" \
+                "Opened by \`spec-bump\`." "" "Spec: REPO-R74")")"
+            number="${created##*/}"
+          fi
+          if [ "$CLEAN" = "success" ]; then
+            gh pr merge "$number" --repo "$REPO" --squash --auto \
+              || echo "::warning::could not arm auto-merge on #${number}; merge it by hand."
+          else
+            echo "::warning::#${number} needs reading: the suite failed against the new copy."
+          fi

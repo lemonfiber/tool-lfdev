@@ -4,6 +4,11 @@
 # and selects nothing more.
 target-version = "py312"
 
+# spec's scripts, copied at the commit `REVISION` names and held to it byte for
+# byte by `vendored_spec.py check`. spec lints them, under the same rules; they
+# are not this repository's to reformat.
+extend-exclude = ["src/lfdev/vendored/*.py", "!src/lfdev/vendored/__init__.py"]
+
 # Command lines, help text and the forge's addresses read better whole.
 line-length = 110
 

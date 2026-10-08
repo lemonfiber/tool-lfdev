@@ -17,8 +17,13 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"lfdev.vendored" = ["REVISION"]
+
 [tool.coverage.run]
 source = ["src/lfdev"]
+# spec's scripts, copied; spec's own suite holds them at 100%.
+omit = ["src/lfdev/vendored/*"]
 branch = true
 
 [tool.coverage.report]
