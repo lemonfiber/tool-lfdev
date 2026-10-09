@@ -42,15 +42,12 @@ it sits in:
     accepted requirement to a version or to a declared wait;
   * a `landed` commit is in this repository's history.
 
-`catalogue` asks the question the specification's own CI asks of every tracker
-at once: whether a feature the catalogue calls finished has every requirement it
-defines done in one of them (OPS-R73). `repos` names the repositories whose
-trackers that is, read from every version manifest's `satisfied_in`.
+`repos` names every repository whose tracker that is, read from every version
+manifest's `satisfied_in`; `maturity.py` reads them together to derive what the
+catalogue says of each feature.
 
 Usage:
   status_check.py check --spec <spec root> [--repo-root .] [--sibling name=path ...]
-  status_check.py catalogue --spec <spec root> --tracker name=<checkout> [...]
-                            [--legacy IMPLEMENTATION-STATUS.md]
   status_check.py repos --spec <spec root>
 
 Exit 0 = every claim is backed; 1 = claims that are not, named; 2 = the question
@@ -60,7 +57,6 @@ could not be asked.
 from __future__ import annotations
 
 import argparse
-import glob
 import pathlib
 import re
 import subprocess
@@ -68,8 +64,6 @@ import sys
 import tomllib
 from dataclasses import dataclass
 
-import metafm
-from catalogue import FEATURE_DOCS
 from integrity import elsewhere
 from paths import within_cwd
 from patterns import REQ_DEF, REQ_RETIRED_ROW
@@ -92,9 +86,6 @@ DONE = STATES[0]
 #: The keys a row may carry.
 REQUIRED = ("id", "state")
 OPTIONAL = ("evidence", "landed")
-
-#: The maturities that say every requirement of a feature is met.
-FINISHED = ("built", "shipped")
 
 IDENTIFIER = re.compile(r"^[A-Z]+\d*-R\d+$")
 SHA = re.compile(r"^[0-9a-f]{7,40}$")
@@ -339,45 +330,6 @@ def check(rows: list[Row], where: str, spec: pathlib.Path, root: pathlib.Path,
     return faults
 
 
-def done_in(trackers: list[list[Row]]) -> set[str]:
-    """Every requirement done in at least one tracker."""
-    return {row.id for rows in trackers for row in rows if row.done}
-
-
-def legacy_done(path: pathlib.Path) -> set[str]:
-    """What a tracker still kept as Markdown tables marks done, read as the gate reads it."""
-    import gate
-
-    return gate.done_ids(path)
-
-
-def reopened(spec: pathlib.Path, done: set[str]) -> list[str]:
-    """Finished features holding a requirement no tracker records as done.
-
-    Asked of every requirement the feature defines, headstones left out, rather
-    than of the ones a version locks: the claim `built` makes is about all of
-    them (OPS-R73).
-    """
-    faults = []
-    for path in sorted(glob.glob(str(spec / FEATURE_DOCS))):
-        front = metafm.load(path) or {}
-        if front.get("maturity") not in FINISHED:
-            continue
-        text = pathlib.Path(path).read_text(encoding="utf-8")
-        missing = sorted(
-            set(REQ_DEF.findall(text)) - set(REQ_RETIRED_ROW.findall(text)) - done,
-            key=lambda one: int(one.partition("-R")[2]),
-        )
-        if missing:
-            faults.append(
-                f"{front.get('id')} is `{front['maturity']}` in the catalogue, and no "
-                f"repository's tracker records {', '.join(missing)} as done. A "
-                "requirement added to a finished feature reopens it: set it "
-                "`building` until each is done (OPS-R73)."
-            )
-    return faults
-
-
 def pairs(specs: list[str], flag: str) -> dict[str, pathlib.Path]:
     """`name=path` arguments as a mapping, refusing one that is not or that
     leaves the working directory."""
@@ -407,10 +359,6 @@ def main() -> int:
     one.add_argument("--spec", required=True)
     one.add_argument("--repo-root", default=".")
     one.add_argument("--sibling", action="append", default=[], metavar="name=path")
-    every = commands.add_parser("catalogue")
-    every.add_argument("--spec", required=True)
-    every.add_argument("--tracker", action="append", default=[], metavar="name=path")
-    every.add_argument("--legacy", help="a tracker still kept as Markdown tables")
     names = commands.add_parser("repos")
     names.add_argument("--spec", required=True)
     args = parser.parse_args()
@@ -423,14 +371,6 @@ def main() -> int:
         if args.command == "repos":
             print("\n".join(searched(spec)))
             return 0
-        if args.command == "catalogue":
-            trackers = [load(path, name) or []
-                        for name, path in pairs(args.tracker, "--tracker").items()]
-            done = done_in(trackers)
-            if args.legacy:
-                done |= legacy_done(within_cwd(args.legacy))
-            return report(reopened(spec, done),
-                          "every finished feature is done whole across the trackers.")
         root = within_cwd(args.repo_root)
         rows = load(root, root.name)
         if rows is None:

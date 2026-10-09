@@ -3,8 +3,9 @@
 #
 # Every workflow that supplies a required check is named, not `ci` alone. The flag
 # says a pull request passed CI, and that sentence is only true once all of them
-# have finished — `ci` carries the hygiene, security, sign-off and spec checks
-# and the tests, and `codeql` the analysis and its alert gate. Named
+# have finished — `gates` carries the hygiene, security, sign-off and spec checks,
+# `pin-only` refuses a change to the workflows, `ci` carries the tests, and
+# `codeql` the analysis and its alert gate. Named
 # here rather than in the reusable because the wait list is read back out of this
 # file, so the two are the same words.
 name: awaiting-maintainer
@@ -15,7 +16,7 @@ on:
   # that the pull request became mergeable. The flag then never goes up and
   # nothing says why.
   workflow_run:
-    workflows: [ci, sonar, codeql, spec-drift]
+    workflows: [gates, pin-only, ci, sonar, codeql, spec-drift]
     types: [completed]
   pull_request_review:
     types: [submitted]
@@ -31,6 +32,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: lemonfiber/spec/.github/workflows/awaiting-maintainer.yml@eaedb9b9ddd3c3208f4fbe898718d19e45e04d74 # v1.0.49
+    uses: lemonfiber/spec/.github/workflows/awaiting-maintainer.yml@4562180c9f974bf03aa9be34610f83bb6eb06029 # v1.0.61
     secrets:
       DISCORD_MAINTAINERS_WEBHOOK: ${{ secrets.DISCORD_MAINTAINERS_WEBHOOK }}
