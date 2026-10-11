@@ -21,6 +21,7 @@ import re
 import sys
 import tomllib
 
+import manifest_repos
 import metafm
 from catalogue import FEATURES_README
 from catalogue import areas as area_names
@@ -500,6 +501,10 @@ def check_manifest_repos():
     `0.1.0` carried `media-stack` where every other manifest says
     `lemonfiber-media-stack`, which is the name the repository actually has.
     Nothing read the two lists against each other.
+
+    A manifest not yet released that cuts the core also cuts every first-party
+    plugin's repository (OPS-R86), and one leaving a plugin out is refused here,
+    on the change that wrote it, rather than at execute.
     """
     manifests = [
         m for m in sorted((ROOT / VERSIONS).glob("*.toml")) if m.name != "TEMPLATE.toml"
@@ -516,14 +521,19 @@ def check_manifest_repos():
     if unreadable:
         return [unreadable]
 
-    return [
-        f"{manifest.relative_to(ROOT)}: {said}, which is not a repository in {REGISTRY}"
-        for manifest in manifests
-        for said, name in repositories_named(
-            tomllib.loads(manifest.read_text(encoding="utf-8"))
-        )
-        if name not in known
-    ]
+    registry = tomllib.loads((ROOT / REGISTRY).read_text(encoding="utf-8"))
+    faults = []
+    for manifest in manifests:
+        data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        faults += [
+            f"{manifest.relative_to(ROOT)}: {said}, which is not a repository in {REGISTRY}"
+            for said, name in repositories_named(data)
+            if name not in known
+        ]
+        missing = manifest_repos.unlisted_plugins(data, registry)
+        if missing:
+            faults.append(f"{manifest.relative_to(ROOT)}: {manifest_repos.unlisted(missing)}")
+    return faults
 
 
 def registered(wanted):

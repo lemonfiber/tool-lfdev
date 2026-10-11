@@ -115,6 +115,9 @@ def ordered(version: str) -> tuple[int, ...]:
 # and a tag that called itself one would fire that by accident.
 PRERELEASE_ID = re.compile(r"^(?!rc\d*(?:\.|$))[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$")
 
+# What separates a pre-release's identifier from its version in a tag.
+PRERELEASE_SEPARATOR = "-"
+
 # Every state a version manifest may be in, in the order OPS-R32 puts them.
 #
 # Ordered rather than a set, because three comments write this chain out for a
