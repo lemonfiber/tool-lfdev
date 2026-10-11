@@ -21,7 +21,7 @@ on:
   # checks Scorecard scores are settings and policies a commit rarely moves, so a
   # push to `main` is not a trigger (Q-R76).
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "23 6 * * 1"
 
 permissions:
   contents: read
