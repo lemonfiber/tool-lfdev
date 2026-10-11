@@ -30,10 +30,17 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      branch: ${{ env.BRANCH }}
+      head: ${{ steps.commit.outputs.built }}
+      clean: ${{ steps.build.outcome }}
+      title: ${{ steps.said.outputs.title }}
+      body: ${{ steps.said.outputs.body }}
     steps:
-      # The commit has to be signed, and only a commit GitHub makes for an App
-      # is; a pull request the workflow's own token opens also runs no checks.
-      - name: Mint a token that can open a pull request here
+      # `main` requires signed commits, and only a commit GitHub makes for an
+      # app is signed. This token writes that commit and nothing else; the pull
+      # request is opened in the next job, with a token of its own.
+      - name: Mint a token that can commit here
         id: token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
@@ -41,6 +48,7 @@ jobs:
           private-key: ${{ secrets.RELEASE_APP_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
+          permission-contents: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -137,12 +145,12 @@ jobs:
             gh api --method POST "repos/${REPO}/git/refs" -f ref="refs/heads/${BRANCH}" -f sha="${built}" >/dev/null
           fi
           gh api --method DELETE "repos/${REPO}/git/refs/heads/${staging}" >/dev/null 2>&1 || true
+          echo "built=${built}" >> "$GITHUB_OUTPUT"
 
-      - name: Open the pull request, and arm it where the suite passed
+      - name: What the pull request says
+        id: said
         if: steps.behind.outputs.moved == 'yes'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-          REPO: ${{ github.repository }}
           HEAD_SHA: ${{ steps.behind.outputs.head }}
           PIN: ${{ steps.behind.outputs.pin }}
           CLEAN: ${{ steps.build.outcome }}
@@ -153,19 +161,35 @@ jobs:
           else
             verdict="**The suite fails against the new copy**: spec changed something lfdev relies on. Read the failing run before merging."
           fi
-          number="$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // ""')"
-          if [ -z "$number" ]; then
-            created="$(gh pr create --repo "$REPO" --head "$BRANCH" --base main \
-              --title "chore(vendored): take spec ${HEAD_SHA:0:8}" \
-              --body "$(printf '%s\n' \
-                "spec's main has moved past the copy of its scripts in \`src/lfdev/vendored/\`, so \`spec-drift\` would fail every pull request here." \
-                "" "- was: \`${PIN}\`" "- now: \`${HEAD_SHA}\`" "" "${verdict}" "" \
-                "Opened by \`spec-bump\`." "" "Spec: REPO-R74")")"
-            number="${created##*/}"
-          fi
-          if [ "$CLEAN" = "success" ]; then
-            gh pr merge "$number" --repo "$REPO" --squash --auto \
-              || echo "::warning::could not arm auto-merge on #${number}; merge it by hand."
-          else
-            echo "::warning::#${number} needs reading: the suite failed against the new copy."
-          fi
+          # Handed to the next job, which opens or edits the pull request. The
+          # delimiter is random, so no line of the body can end the value.
+          delimiter="body_$(openssl rand -hex 16)"
+          {
+            echo "title=chore(vendored): take spec ${HEAD_SHA:0:8}"
+            echo "body<<${delimiter}"
+            printf '%s\n' \
+              "spec's main has moved past the copy of its scripts in \`src/lfdev/vendored/\`, so \`spec-drift\` would fail every pull request here." \
+              "" "- was: \`${PIN}\`" "- now: \`${HEAD_SHA}\`" "" "${verdict}" "" \
+              "Opened by \`spec-bump\`." "" "Spec: REPO-R74"
+            echo "${delimiter}"
+          } >> "$GITHUB_OUTPUT"
+
+  # The pull request is opened, or the open one edited, only where it is this
+  # bump's own: the release app opened it from this repository's branch and it
+  # is at the commit above (OPS-R87). It merges itself only where the suite
+  # passed; otherwise any arming is switched off and it needs reading.
+  pull-request:
+    needs: bump
+    if: needs.bump.outputs.head != ''
+    permissions:
+      contents: read
+    uses: lemonfiber/spec/.github/workflows/rolling-pull-request.yml@be0b484aa5c2a7e2a6cee4b33866143634e6e1df # v1.0.70
+    with:
+      branch: ${{ needs.bump.outputs.branch }}
+      head: ${{ needs.bump.outputs.head }}
+      title: ${{ needs.bump.outputs.title }}
+      body: ${{ needs.bump.outputs.body }}
+      auto-merge: ${{ needs.bump.outputs.clean == 'success' }}
+      disarm: ${{ needs.bump.outputs.clean != 'success' }}
+    secrets:
+      RELEASE_APP_KEY: ${{ secrets.RELEASE_APP_KEY }}
