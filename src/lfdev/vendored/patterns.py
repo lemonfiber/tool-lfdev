@@ -140,3 +140,9 @@ IN_FLIGHT = ("staged", "in_progress", "releasable")
 # reaching a subprocess, and the analysis that checks such a call cannot follow a
 # pattern imported from elsewhere — so importing it reported both guarded calls
 # as unguarded. A validation is worth keeping where the thing it validates is.
+
+# The digest of a multi-architecture index, as a pin writes it (ADR-0023), and an image
+# tag as a reference spells one. Both are held before either reaches a manifest, a
+# command line or a replacement pattern.
+DIGEST = re.compile(r"\Asha256:[0-9a-f]{64}\Z")
+IMAGE_TAG = re.compile(r"\A\w[\w.-]{0,127}\Z", re.ASCII)
