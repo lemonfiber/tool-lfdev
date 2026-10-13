@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   spec-drift:
-    uses: lemonfiber/spec/.github/workflows/upstream-drift.yml@f368b52cac7510f5903f04d8884a27b3c33d0b11 # v1.0.92
+    uses: lemonfiber/spec/.github/workflows/upstream-drift.yml@49e197014b52bdbb975555a0043a15c26a69257b # v1.0.93
     with:
       lock: "vendored"
       upstream: "spec"
