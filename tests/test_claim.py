@@ -1,5 +1,5 @@
-"""`lfdev claim`: refuse what the board says is taken or full, then branch,
-commit, push and open the draft."""
+"""`lfdev claim`: refuse what the board says is taken, then branch, commit,
+push and open the draft."""
 
 from __future__ import annotations
 
@@ -10,39 +10,38 @@ from lfdev import claim
 from tests.fixture import board
 
 
-def with_repo(counted, cap=3):
+def claimed():
     data = board()
-    data["claims"] = {"cap": cap, "stale_days": 14}
-    data["repos"] = [{"name": "lemonfiber", "counted_pulls": counted}]
     data["requirements"].append({"id": "B1-R2", "text": "Claimed."})
     return data
 
 
 class Claimable(unittest.TestCase):
-    def test_an_open_requirement_in_a_repository_under_the_cap(self):
-        found = claim.claimable(with_repo(1), "B1-R1", "lemonfiber")
+    def test_an_open_requirement(self):
+        found = claim.claimable(claimed(), "B1-R1", "lemonfiber")
         self.assertEqual(
             (found.ident, found.repo, found.text), ("B1-R1", "lemonfiber", "The tool MUST run a form.")
         )
 
     def test_a_bots_pull_request_claims_nothing(self):
-        data = with_repo(1)
+        data = claimed()
         data["pulls"].append({"repo": "lemonfiber", "number": 8, "cites": ["B1-R1"], "bot": True})
         self.assertEqual(claim.claimable(data, "B1-R1", "lemonfiber").ident, "B1-R1")
 
-    def test_a_repository_the_board_did_not_count_is_not_refused(self):
-        self.assertEqual(claim.claimable(with_repo(None), "B1-R1", "lemonfiber").ident, "B1-R1")
-        self.assertEqual(claim.claimable(board(), "B1-R1", "sdk-ts").repo, "sdk-ts")
+    def test_however_many_pull_requests_the_repository_holds(self):
+        data = claimed()
+        data["repos"] = [{"name": "lemonfiber", "open_pulls": 9}]
+        data["pulls"] += [{"repo": "lemonfiber", "number": n, "cites": []} for n in range(10, 19)]
+        self.assertEqual(claim.claimable(data, "B1-R1", "lemonfiber").ident, "B1-R1")
 
     def test_refusals(self):
-        data = with_repo(3)
+        data = claimed()
         data["versions"][2]["goals"].append({"id": "A1-R1", "claims": [{"repo": "sdk-ts", "number": 4}]})
         cases = {
             "not an identifier": ("B1", "is not a requirement identifier"),
             "not defined": ("Z9-R9", "defines no requirement Z9-R9"),
             "cited by an open pull request": ("B1-R2", "already claimed by lemonfiber#7"),
             "claimed on a goal": ("A1-R1", "already claimed by sdk-ts#4"),
-            "the repository is full": ("B1-R1", "already holds 3 open pull requests"),
         }
         for why, (ident, said) in cases.items():
             with self.subTest(why), self.assertRaisesRegex(ValueError, said):
@@ -79,7 +78,7 @@ class Claim(unittest.TestCase):
         return post
 
     def claim(self, ident="B1-R1", failing=None, fails=False):
-        return claim.claim(ident, with_repo(1), self.ask, self.runner(failing), self.poster(fails))
+        return claim.claim(ident, claimed(), self.ask, self.runner(failing), self.poster(fails))
 
     def test_branches_commits_pushes_and_opens_a_draft(self):
         self.assertEqual(self.claim(), (0, "claimed B1-R1: https://github.com/lemonfiber/lemonfiber/pull/9"))
