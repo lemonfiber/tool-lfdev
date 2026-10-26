@@ -15,10 +15,10 @@ from tests.fixture import board
 
 class Parse(unittest.TestCase):
     def test_a_snapshot_in_the_format_read_here(self):
-        self.assertEqual(snapshot.parse(json.dumps(board()))["format"], 1)
+        self.assertEqual(snapshot.parse(json.dumps(board()))["format"], 2)
 
     def test_refused_when_not_json_not_an_object_or_another_format(self):
-        for text, said in (("{", "not JSON"), ("[]", "not an object"), ('{"format": 2}', "format 2")):
+        for text, said in (("{", "not JSON"), ("[]", "not an object"), ('{"format": 1}', "format 1")):
             with self.subTest(text=text), self.assertRaisesRegex(snapshot.Unreadable, said):
                 snapshot.parse(text)
 
@@ -38,7 +38,7 @@ class Load(unittest.TestCase):
         answer = mock.MagicMock()
         answer.__enter__.return_value = io.BytesIO(json.dumps(board()).encode())
         with mock.patch("urllib.request.urlopen", return_value=answer) as opened:
-            self.assertEqual(snapshot.load(snapshot.BOARD_URL)["format"], 1)
+            self.assertEqual(snapshot.load(snapshot.BOARD_URL)["format"], 2)
         request = opened.call_args.args[0]
         self.assertEqual(
             (request.full_url, request.get_header("User-agent")), (snapshot.BOARD_URL, forge.USER_AGENT)

@@ -218,7 +218,7 @@ class Commands(unittest.TestCase):
         ):
             self.assertEqual(run(["claim", "B1-R1"]), (0, "claimed\n"))
             ident, data, _, _, post = claimed.call_args.args
-            self.assertEqual((ident, data["format"]), ("B1-R1", 1))
+            self.assertEqual((ident, data["format"]), ("B1-R1", 2))
             self.assertEqual(post("repos/x", {"a": 1}), {"ok": 1})
         posted.assert_called_once_with("repos/x", "t", {"a": 1})
 

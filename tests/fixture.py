@@ -1,4 +1,4 @@
-"""A small board snapshot in format 1, shaped as the specification documents
+"""A small board snapshot in format 2, shaped as the specification documents
 it, for every test that reads one."""
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ def goal(ident: str, verdict: str, claims: list[dict[str, Any]] | None = None) -
 
 
 BOARD: dict[str, Any] = {
-    "format": 1,
+    "format": 2,
     "generated_at": "2026-10-08T00:00:00Z",
     "sources": {"spec": "a" * 40},
     "features": [

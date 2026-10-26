@@ -21,7 +21,7 @@ from lfdev import forge
 #: Where the newest snapshot is published.
 BOARD_URL = "https://github.com/lemonfiber/spec/releases/download/board/board.json"
 #: The one shape of `board.json` this tool reads.
-FORMAT = 1
+FORMAT = 2
 #: The variable naming another snapshot, a URL or a path, for a run that must
 #: read a particular one.
 SOURCE_VARIABLE = "LFDEV_SNAPSHOT"

@@ -1,5 +1,5 @@
 """`lfdev claim <id>`: say you are working on a requirement, the way every
-repository reads it (GOV-R57, GOV-R58).
+repository reads it (GOV-R57).
 
 A claim is a draft pull request in the repository the work happens in: a branch
 cut from `main`, one empty signed commit carrying the `Spec:` line and a
@@ -7,8 +7,7 @@ sign-off, pushed and opened as a draft through REST as the person (REPO-R75,
 REPO-R77). The board then shows the requirement as claimed.
 
 It reads the published board snapshot first and refuses a requirement somebody
-has already claimed and a repository already holding as many open pull requests
-as the cap allows (REPO-R76).
+has already claimed (REPO-R76).
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ class Claimable:
 
 def holders(board: Mapping[str, Any], ident: str) -> list[str]:
     """The open pull requests that already claim a requirement, as `repo#n`; a
-    bot's pull request claims nothing (GOV-R58)."""
+    bot's pull request claims nothing."""
     found = {
         f"{p['repo']}#{p['number']}"
         for p in board.get("pulls", [])
@@ -58,14 +57,6 @@ def claimable(board: Mapping[str, Any], ident: str, repo: str) -> Claimable:
     held = holders(board, ident)
     if held:
         raise ValueError(f"{ident} is already claimed by {', '.join(held)}")
-    cap = board.get("claims", {}).get("cap")
-    standing = next((r for r in board.get("repos", []) if r.get("name") == repo), {})
-    counted = standing.get("counted_pulls")
-    if cap is not None and counted is not None and counted >= cap:
-        raise ValueError(
-            f"{repo} already holds {counted} open pull requests from people and agents; the cap is {cap} "
-            "(GOV-R58). Land or close one first"
-        )
     return Claimable(ident, repo, text)
 
 
