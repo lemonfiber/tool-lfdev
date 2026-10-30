@@ -100,6 +100,7 @@ def ordered(version: str) -> tuple[int, ...]:
     """
     return tuple(int(part) for part in version.split("."))
 
+
 # A pre-release identifier, as OPS-R61 lets a tag carry one: dot-separated
 # alphanumeric segments, appended to a version that is otherwise this one.
 #

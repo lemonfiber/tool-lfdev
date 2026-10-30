@@ -227,9 +227,7 @@ def disagrees(found: dict[str, list[str]], rules: list[str], forge: str) -> str 
     # to be blocking, and calling that a disagreement would make this cry wolf on
     # every pull request between the push and the last check — which is most of
     # them, most of the time.
-    clear = not rules and not any(
-        found[key] for key in ("missing", "failing", "waiting")
-    )
+    clear = not rules and not any(found[key] for key in ("missing", "failing", "waiting"))
     if clear and forge not in ("CLEAN", "HAS_HOOKS", "UNSTABLE", "UNKNOWN", ""):
         return (
             f"every required context is satisfied here, but GitHub says {forge}. "
@@ -346,9 +344,7 @@ def _gh(*args: str) -> str:
     come from outside this script are checked against `named` and `branched`
     before they arrive here.
     """
-    done = subprocess.run(
-        ("gh", *args), capture_output=True, text=True, check=False, timeout=60
-    )
+    done = subprocess.run(("gh", *args), capture_output=True, text=True, check=False, timeout=60)
     return done.stdout if done.returncode == 0 else ""
 
 
@@ -374,9 +370,7 @@ def rules_in(protection: dict) -> dict[str, bool]:
     return {
         "strict": bool(checks.get("strict")),
         "signatures": bool((protection.get("required_signatures") or {}).get("enabled")),
-        "conversation": bool(
-            (protection.get("required_conversation_resolution") or {}).get("enabled")
-        ),
+        "conversation": bool((protection.get("required_conversation_resolution") or {}).get("enabled")),
         "reviews": (reviews.get("required_approving_review_count") or 0) > 0,
     }
 
@@ -445,10 +439,18 @@ def _unresolved(repo: str, number: int) -> bool | None:
     """
     owner, name = repo.split("/", 1)
     said = _gh(
-        "api", "graphql",
-        "-f", f"query={THREADS}",
-        "-F", f"owner={safe(owner)}", "-F", f"repo={safe(name)}", "-F", f"number={safe(str(number))}",
-        "--jq", "[.data.repository.pullRequest.reviewThreads.nodes[].isResolved]",
+        "api",
+        "graphql",
+        "-f",
+        f"query={THREADS}",
+        "-F",
+        f"owner={safe(owner)}",
+        "-F",
+        f"repo={safe(name)}",
+        "-F",
+        f"number={safe(str(number))}",
+        "--jq",
+        "[.data.repository.pullRequest.reviewThreads.nodes[].isResolved]",
     )
     if not said.strip():
         return None
@@ -515,12 +517,14 @@ def reading(runs: list[dict], statuses: list[dict]) -> dict[str, str]:
             if conclusion
             else _STATUS.get(run.get("status", ""), "PENDING")
         )
-        _keep(latest, run.get("name", ""), state,
-              run.get("completed_at") or run.get("started_at") or "")
+        _keep(latest, run.get("name", ""), state, run.get("completed_at") or run.get("started_at") or "")
     for status in statuses:
-        _keep(latest, status.get("context", ""),
-              _COMMIT_STATE.get(status.get("state", ""), "PENDING"),
-              status.get("created_at") or "")
+        _keep(
+            latest,
+            status.get("context", ""),
+            _COMMIT_STATE.get(status.get("state", ""), "PENDING"),
+            status.get("created_at") or "",
+        )
     return {name: state for name, (_, state) in latest.items()}
 
 
@@ -548,13 +552,17 @@ def _reported(repo: str, number: int) -> dict[str, str]:
     if not sha:
         return {}
     runs = _gh(
-        "api", f"repos/{safe(repo)}/commits/{safe(sha)}/check-runs?per_page=100",
-        "--paginate", "--jq",
+        "api",
+        f"repos/{safe(repo)}/commits/{safe(sha)}/check-runs?per_page=100",
+        "--paginate",
+        "--jq",
         "[.check_runs[]|{name,conclusion,status,completed_at,started_at}]",
     )
     statuses = _gh(
-        "api", f"repos/{safe(repo)}/commits/{safe(sha)}/status",
-        "--jq", "[.statuses[]|{context,state,created_at}]",
+        "api",
+        f"repos/{safe(repo)}/commits/{safe(sha)}/status",
+        "--jq",
+        "[.statuses[]|{context,state,created_at}]",
     )
     return reading(
         json.loads(runs) if runs.strip() else [],
@@ -564,8 +572,15 @@ def _reported(repo: str, number: int) -> dict[str, str]:
 
 def _head(repo: str, number: int) -> str:
     said = _gh(
-        "pr", "view", "-R", safe(repo), safe(str(number)),
-        "--json", "headRefOid", "--jq", ".headRefOid",
+        "pr",
+        "view",
+        "-R",
+        safe(repo),
+        safe(str(number)),
+        "--json",
+        "headRefOid",
+        "--jq",
+        ".headRefOid",
     )
     return said.strip()
 
@@ -588,8 +603,17 @@ def _conclusions(repo: str, branch: str, sha: str) -> list[str]:
     Only asked when nothing reported, because that is the only case it answers.
     """
     said = _gh(
-        "run", "list", "-R", safe(repo), "--branch", safe(branch), "--limit", "40",
-        "--json", "headSha,conclusion", "--jq",
+        "run",
+        "list",
+        "-R",
+        safe(repo),
+        "--branch",
+        safe(branch),
+        "--limit",
+        "40",
+        "--json",
+        "headSha,conclusion",
+        "--jq",
         f'[.[]|select(.headSha == "{safe(sha)}")|.conclusion]',
     )
     return [c for c in (json.loads(said) if said.strip() else []) if c]

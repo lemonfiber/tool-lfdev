@@ -12,6 +12,7 @@ Verifies:
 
 Exit 0 = clean, 1 = problems found.
 """
+
 from __future__ import annotations
 
 import collections
@@ -130,8 +131,7 @@ def undefined_citations(defset, adrs):
 
 def check_ids():
     defined = defined_reqs()
-    problems = [f"duplicate requirement id defined {n}x: {i}"
-                for i, n in sorted(defined.items()) if n > 1]
+    problems = [f"duplicate requirement id defined {n}x: {i}" for i, n in sorted(defined.items()) if n > 1]
     problems += undefined_citations(set(defined), defined_adrs())
     return problems
 
@@ -171,7 +171,7 @@ def section(text: str, heading: str) -> str:
     except StopIteration:
         return ""
     end = next((n for n in range(start + 1, len(lines)) if lines[n].startswith("## ")), len(lines))
-    return "\n".join(lines[start + 1:end]).strip()
+    return "\n".join(lines[start + 1 : end]).strip()
 
 
 def amendable(name: str) -> bool:
@@ -221,8 +221,9 @@ def proposal_faults(path: pathlib.Path, areas: set[str]) -> list[str]:
     front = metafm.parse(text)
     if front is None:
         return ["has no front matter; copy TEMPLATE.md"]
-    named = [] if PROPOSAL_FILE.match(path.name) else [
-        "is not named with lower-case letters, digits and hyphens"]
+    named = (
+        [] if PROPOSAL_FILE.match(path.name) else ["is not named with lower-case letters, digits and hyphens"]
+    )
     return named + field_faults(front, areas) + body_faults(front.get("kind"), front.get("amends"), text)
 
 
@@ -257,7 +258,7 @@ def check_statuses():
         text = p.read_text(encoding="utf-8")
         if not text.startswith("---\n"):
             continue
-        head, _, _ = text[len("---\n"):].partition("\n---\n")
+        head, _, _ = text[len("---\n") :].partition("\n---\n")
         front = FRONTMATTER_STATUS.search(head)
         header = HEADER_STATUS.search(text)
         if not front or not header:
@@ -299,8 +300,7 @@ def counted() -> tuple[dict, list[str]]:
 
     counts = json.loads(index.read_text(encoding="utf-8"))["counts"]
     features = int(counts["features"])
-    adrs = len([p for p in (ROOT / "00-overview" / "decisions").glob("*.md")
-                if ADR_FILE.match(p.name)])
+    adrs = len([p for p in (ROOT / "00-overview" / "decisions").glob("*.md") if ADR_FILE.match(p.name)])
 
     return {
         r"(\d+)-feature catalogue": (features, "features"),
@@ -367,13 +367,12 @@ def write_counts() -> list[str]:
     for path in md_files():
         text = original = path.read_text(encoding="utf-8")
         for pattern, (actual, what) in expected.items():
+
             def replace(found, actual=actual, what=what, path=path):
                 stated = int(found.group(1))
                 if stated == actual:
                     return found.group(0)
-                changed.append(
-                    f"{path.relative_to(ROOT)}: {stated} -> {actual} {what}"
-                )
+                changed.append(f"{path.relative_to(ROOT)}: {stated} -> {actual} {what}")
                 return found.group(0).replace(found.group(1), str(actual), 1)
 
             text = re.sub(pattern, replace, text)
@@ -404,11 +403,7 @@ def manifests() -> list[pathlib.Path]:
     The template is a file whose job is to be read as an example, so a number
     written into it documents the shape rather than claiming anything.
     """
-    return [
-        path
-        for path in sorted((ROOT / VERSIONS).glob("*.toml"))
-        if path.name != "TEMPLATE.toml"
-    ]
+    return [path for path in sorted((ROOT / VERSIONS).glob("*.toml")) if path.name != "TEMPLATE.toml"]
 
 
 def goal_counts() -> list[tuple[pathlib.Path, str, int, int]]:
@@ -447,8 +442,7 @@ def stated_goal_counts() -> list[str]:
 
     stated_anywhere = goal_counts()
     faults = [
-        f"{path.relative_to(ROOT)}:{line}: says {stated} goals where this "
-        f"version locks {locked}"
+        f"{path.relative_to(ROOT)}:{line}: says {stated} goals where this version locks {locked}"
         for path, line, stated, locked in stated_anywhere
         if stated != locked
     ]
@@ -478,9 +472,7 @@ def write_goal_counts() -> list[str]:
         def replace(match, locked=locked, path=path):
             if int(match.group(2)) == locked:
                 return match.group(0)
-            changed.append(
-                f"{path.relative_to(ROOT)}: {match.group(2)} -> {locked} goals"
-            )
+            changed.append(f"{path.relative_to(ROOT)}: {match.group(2)} -> {locked} goals")
             return f"{match.group(1)}{locked}{match.group(3)}"
 
         text = GOAL_COUNT.sub(replace, text)
@@ -507,9 +499,7 @@ def check_manifest_repos():
     plugin's repository (OPS-R86), and one leaving a plugin out is refused here,
     on the change that wrote it, rather than at execute.
     """
-    manifests = [
-        m for m in sorted((ROOT / VERSIONS).glob("*.toml")) if m.name != "TEMPLATE.toml"
-    ]
+    manifests = [m for m in sorted((ROOT / VERSIONS).glob("*.toml")) if m.name != "TEMPLATE.toml"]
 
     # A tree with no manifests has nothing to check, which is the shape the
     # suite builds. A tree with manifests and no registry is a different fact
@@ -553,8 +543,7 @@ def registered(wanted):
 
     if not registry.is_file():
         return set(), (
-            f"{REGISTRY}: not found, and {wanted} manifest(s) name "
-            "repositories that have to resolve to one"
+            f"{REGISTRY}: not found, and {wanted} manifest(s) name repositories that have to resolve to one"
         )
 
     read = tomllib.loads(registry.read_text(encoding="utf-8"))
@@ -601,12 +590,7 @@ def main() -> int:
     # De-dup the "cites undefined" one-per-file noise into unique messages.
     seen = set()
     for msg in (
-        check_ids()
-        + check_links()
-        + check_statuses()
-        + counts
-        + check_manifest_repos()
-        + check_proposals()
+        check_ids() + check_links() + check_statuses() + counts + check_manifest_repos() + check_proposals()
     ):
         if msg not in seen:
             seen.add(msg)
