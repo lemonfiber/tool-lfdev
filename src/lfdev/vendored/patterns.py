@@ -119,6 +119,10 @@ PRERELEASE_ID = re.compile(r"^(?!rc\d*(?:\.|$))[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$"
 # What separates a pre-release's identifier from its version in a tag.
 PRERELEASE_SEPARATOR = "-"
 
+# The tag an image a commit on `main` published is under: `main-` and the commit's first
+# twelve characters (OPS-R90). No release is ever named this way.
+COMMIT_IMAGE = re.compile(r"\Amain-[0-9a-f]{12}\Z")
+
 # Every state a version manifest may be in, in the order OPS-R32 puts them.
 #
 # Ordered rather than a set, because three comments write this chain out for a
