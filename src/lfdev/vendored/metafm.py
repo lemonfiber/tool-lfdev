@@ -6,6 +6,7 @@ flat ``key: value`` pairs, with bare / single-quoted / double-quoted scalars and
 ``[a, b]`` flow lists. Deliberately not a general YAML parser, so the scripts
 carry no third-party dependency.
 """
+
 import pathlib
 
 
