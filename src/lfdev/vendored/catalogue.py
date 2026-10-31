@@ -14,6 +14,7 @@ direction that matters, because a reader finding nothing reports nothing wrong.
 So the glob and the schema have one home, and `features()` is the only answer to
 "what does the catalogue hold".
 """
+
 from __future__ import annotations
 
 import glob
