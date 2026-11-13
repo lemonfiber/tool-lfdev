@@ -76,8 +76,16 @@ ADR_CITE = re.compile(r"\bADR-(\d{3,4})\b")
 # against the repository itself, offline, and `git show` is the audit.
 LANDED = re.compile(r"landed in `([0-9a-f]{7,40})`")
 
-# The trailer a commit or a pull request cites the specification with.
-SPEC_TRAILER = re.compile(r"^[ \t]*Spec:[ \t]*(\S.*)$", re.MULTILINE | re.IGNORECASE)
+# One citation as a trailer lists it: a requirement, a range of them, or an ADR.
+_TRAILER_CITE = r"(?:[A-Z]+\d*-R\d+(?:\.\.(?:[A-Z]+\d*-)?R?\d+)?|ADR-\d{3,4})"
+
+# The trailer a commit or a pull request cites the specification with, and every line
+# after it that holds nothing but citations: a list wrapped onto lines of its own is
+# still the one trailer, whether or not the wrapping indented it.
+SPEC_TRAILER = re.compile(
+    rf"^[ \t]*Spec:[ \t]*(\S.*(?:\n[ \t]*{_TRAILER_CITE}(?:[ \t]*,?[ \t]*{_TRAILER_CITE})*[ \t]*,?[ \t]*$)*)",
+    re.MULTILINE | re.IGNORECASE,
+)
 
 # A version, as the manifests and the tracker write one.
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
