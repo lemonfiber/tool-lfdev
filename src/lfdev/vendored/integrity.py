@@ -490,11 +490,6 @@ def check_manifest_repos():
     nothing is a clone that fails at release, or a search that finds no commits
     and reports the goals unmet for a reason that is not about the work.
 
-    A retired repository resolves, since a released manifest still names what it
-    cut and searched then. A manifest not yet released may search one, whose
-    history still holds the work, and may not cut one: nothing is tagged there
-    again.
-
     A manifest not yet released that cuts the core also cuts every first-party
     plugin's repository (OPS-R86), and one leaving a plugin out is refused here,
     on the change that wrote it, rather than at execute.
@@ -520,10 +515,6 @@ def check_manifest_repos():
             f"{manifest.relative_to(ROOT)}: {said}, which is not a repository in {REGISTRY}"
             for said, name in repositories_named(data)
             if name not in known
-        ]
-        faults += [
-            f"{manifest.relative_to(ROOT)}: cuts {name}, which {REGISTRY} lists as retired"
-            for name in manifest_repos.retired_cut(data, registry)
         ]
         missing = manifest_repos.unlisted_plugins(data, registry)
         if missing:
@@ -552,7 +543,7 @@ def registered(wanted):
     if not governed:
         return set(), f"{REGISTRY}: no repository was read, so nothing can be checked against it"
 
-    return governed | {repo["name"] for repo in read.get(manifest_repos.RETIRED, [])}, None
+    return governed, None
 
 
 def repositories_named(data):
